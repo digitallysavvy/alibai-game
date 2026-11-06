@@ -9,8 +9,8 @@ Commands run from `alibai-ui` unless noted. On 2026-11-04 the three migrations w
 | `npm run lint` | Passed configured scenario/server/scripts/tests/API lint scope |
 | `npm run scenarios:validate` | All 8 authored fixtures and 8 dry-run copies validated |
 | `npm run scenarios:generate -- --fixtures --count 8 --dry-run` | 8 accepted, 0 failed; no model/API publication |
-| `node --import tsx scripts/scenarios/seed-sql.ts` | Generated eight-case SQL seed |
-| `node --import tsx scripts/scenarios/install-sql.ts` | Generated guarded installation, preflight and postflight SQL |
+| `pnpm data:build` | Generated eight-case SQL seed |
+| `pnpm data:build` | Generated guarded installation, preflight and postflight SQL |
 | `npm run test:db` | One DB suite explicitly skipped; no local database configuration |
 | `npm run build` | Failed fetching the existing Google Fonts over restricted network |
 | `node --check scripts/agora-setup.mjs` | Passed |

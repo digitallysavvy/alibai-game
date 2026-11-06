@@ -3,12 +3,13 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DecoRule, Eyebrow, Monogram } from '@/components/game/deco'
+import interrogationRoom from '@/public/images/interrogation-room.webp'
 
 export default function LandingPage() {
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-obsidian">
       <Image
-        src="/images/interrogation-room.png"
+        src={interrogationRoom}
         alt=""
         fill
         priority

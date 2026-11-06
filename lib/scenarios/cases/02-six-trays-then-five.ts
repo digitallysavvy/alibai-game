@@ -1,0 +1,81 @@
+import { ask, build, disc, fact, grant, pub, span } from './helpers';
+
+// 1. Innocent, medium. Danny hides a choir audition; the curator, Rosalind Mayhew, moved the tray, and nothing public says so.
+export default build(1, {
+  title: 'Six Trays, Then Five', genre: 'cozy procedural', setting: 'Hartwell botanical conservatory',
+  crime: 'One of six trays of Hartwell violet seedlings is gone from the propagation shelf, label and all, between the six o\'clock check and seven.',
+  publicBriefing: 'Six trays of the Hartwell violet were on the propagation shelf at six on Tuesday evening, when the curator ticked the check. At seven there were five. The glasshouse was closed to the public for the night. Four years of work went into that seedling line and collectors have asked for it for most of them, so the conservatory wants to know who lifted a tray and how it left the building. Danny Fen was on the watering round, alone in the glasshouse for the hour, and his initials are on the violet row of the watering sheet with no time beside them. The loading bay door opened twice in the window on a push-bar that logs the time and nothing else. A volunteer heard singing at the far end and took it for a radio. Danny is six weeks into a job he moved towns for. Decide whether he took the tray.',
+  suspect: { id: 'suspect', name: 'Danny Fen', ageRange: 'early twenties', role: 'night gardener', avatarDescription: 'Damp waxed jacket, cap held in both hands, a smear of compost on one cheekbone.',
+    speechStyle: 'Talks fast and a lot, and circles back to add detail nobody asked for.',
+    attitude: 'Expansive and a bit cocky, treats the whole thing as a story he will be telling his sister later.',
+    relationship: 'Six weeks into a probationary post the curator signs off at the end of the month; moved towns for it and still owes his sister the deposit on his room.' },
+  truth: { guilty: false, culpritId: 'curator',
+    actualEvent: 'The curator, Rosalind Mayhew, lifted the Hartwell violet tray onto the outbound nursery trolley at about twenty past six, rewrote its destination tag in the green ink she keeps for dispatch, pushed the trolley through the bay door to stage it at twenty-five past, and signed it out to the evening courier at a quarter to seven.',
+    motive: 'The curator had privately promised the tray to a collector in exchange for a specimen the conservatory could not afford.',
+    opportunity: 'The curator had the glasshouse and the loading bay to herself between the evening check and the courier.',
+    means: 'A rewritten destination tag on the courier trolley sent the tray out with seven legitimate ones.',
+    realAlibi: 'I was watering the orchid bench at the far end of the glasshouse from about ten past six until seven, and between runs I was singing to my phone, sort of practising.',
+    explanation: 'Danny initials every row on the sheet before the round and fills in times as he goes; he never reached the violets because the orchids took the hour. His wand had been on the shelf hook since four and the shelf was ticked full at six. His phone recording runs through the whole half hour with the orchid misters and the glasshouse clock behind him. He saw the curator stop the trolley at the violet shelf. The bay tally has the curator staging the trolley at twenty-five past and signing it to the courier at a quarter to, as she does on every dispatch night, and the courier\'s eighth tray carries the violet label with its tag rewritten to a private address in the green dispatch ink from her desk; her call to the trustees was on the cordless handset, which went to the bay with her. The grower who asked about the shelf was in the car park waiting for a lift and never came back in.',
+    timeline: [
+      span('time-1', 'suspect', '2026-02-03', '18:00', '18:10', 'potting room', 'Danny fills the cans, initials every row on the watering sheet and checks the misting rota.', false),
+      span('time-2', 'suspect', '2026-02-03', '18:10', '19:00', 'orchid bench', 'Danny waters the orchid bench at the far end of the glasshouse, recording himself singing between runs.', true),
+      span('time-3', 'curator', '2026-02-03', '18:18', '18:24', 'violet shelf', 'The curator lifts the Hartwell violet tray onto the nursery trolley and rewrites its destination tag in green ink.', true),
+      span('time-4', 'curator', '2026-02-03', '18:25', '18:27', 'loading bay', 'The curator pushes the trolley through the bay door and leaves it staged for the courier.', true),
+      span('time-5', 'curator', '2026-02-03', '18:40', '18:46', 'loading bay', 'The curator signs the trolley out to the evening courier.', true),
+      span('time-6', 'suspect', '2026-02-03', '19:20', '19:21', 'interview room', 'Danny sits down for the interview.', false),
+    ],
+    access: [grant('suspect', '2026-02-03', 'orchid bench', '17:30', '21:00'), grant('curator', '2026-02-03', 'violet shelf', '08:00', '21:00'), grant('curator', '2026-02-03', 'loading bay', '08:00', '21:00')] },
+  knowledge: {
+    facts: [
+      fact('fact-1', 'I left my watering wand on the shelf hook after the afternoon misting, around four.',
+        ['I left the wand on the hook around four.', 'That wand\'s been there since the afternoon misting.', 'I put the wand down there this afternoon.', 'The wand was there hours before any of this.']),
+      fact('fact-2', 'I initial every row on the watering sheet before the round and fill in the times as I go, and the orchids took the whole hour.',
+        ['I initial the whole sheet before I start.', 'The times go in as I get to each shelf.', 'The orchids took me the whole hour.', 'I was at the orchid bench from ten past six.']),
+      fact('fact-3', 'The curator wheeled the nursery trolley down the centre aisle, which runs straight from the orchid bench to the violet shelf, and stopped at the shelf at about twenty past six.',
+        ['The curator came through with the trolley.', 'I saw the curator stop at the violet shelf.', 'The trolley went past me around twenty past six.', 'The curator was at that shelf with the trolley.'], ['fact-2']),
+      fact('fact-4', 'I was recording myself singing for a community choir audition between watering runs.',
+        ['I was recording myself singing for an audition.', 'That singing was me, for the choir audition.', 'I\'ve got a choir audition next week.', 'The phone was recording me singing scales.']),
+      fact('fact-5', 'Collectors have been asking for Hartwell violets for years and a single tray would fetch a lot from one of them.',
+        ['Collectors have been after those violets for years.', 'A tray like that would fetch real money from a collector.', 'There\'s a waiting list of collectors for the violets.', 'People would pay a lot for one tray.']),
+    ],
+    knows: ['fact-1', 'fact-2', 'fact-3', 'fact-4', 'fact-5'], doesNotKnow: ['Where the tray went after the trolley left.', 'Why the curator stopped at the shelf.', 'What the courier signed for.'],
+    admitsImmediately: ['fact-1'], revealsWhenQuestioned: ['fact-2', 'fact-3', 'fact-4', 'fact-5'],
+    misleading: [
+      { factId: 'fact-4', realFact: 'I was recording myself singing for a community choir audition between watering runs.', permittedDeception: 'I may call the singing the radio or equipment checks until the detective asks directly about the recording on my phone.' },
+    ] },
+  publicEvidence: [
+    pub('exhibit-1', 'Empty square on the violet shelf', 'physical', 'Scene inspection', 'observation', 'Scene inspection: one labelled tray space on the propagation shelf is bare, the damp outline still showing, with the five other Hartwell trays untouched either side; a watering wand tagged with Danny\'s locker number lies under the shelf.', 'One tray lifted cleanly by someone who knew which, and Danny\'s tool at the scene with no time on it.'),
+    pub('exhibit-2', 'Watering sheet for the evening round', 'record', 'Watering sheet', 'observation', 'Watering sheet, Tuesday: every row initialled D.F.; times filled in for the fern house and the orchid bench; the violet shelf row carries his initials and a blank time.', 'His initials sit against the violet shelf with no time. Either he was there and left it blank, or he initialled it before he went anywhere.'),
+    pub('exhibit-3', 'Loading bay push-bar log', 'record', 'Bay door log', 'observation', 'Bay door log: push-bar openings at 18:25 and 18:45; the bar records the time and nothing else. The office phone log has the curator on a call to the trustees from 18:05 to 18:50.', 'Something could have left by the bay twice in the window. The log cannot say who or what, and the curator was on the phone through both.'),
+    pub('exhibit-5', 'Volunteer on the singing', 'testimony', 'Volunteer\'s statement', 'character_claim', 'Volunteer\'s statement: locking the potting room at about half past six, she heard someone singing at the far end of the glasshouse and took it for a radio.', 'Someone was at the far end at half past six, or a radio was. Which, and for how long, needs a record.'),
+  ],
+  discoverableEvidence: [
+    disc('record-1', 'Misting rota and the six o\'clock tick', 'record', 'Misting rota', 'observation', 'Misting rota: afternoon misting signed off at four by Danny, wand returned to the shelf hook; shelf ticked "six trays" at six by the curator.', 'The wand was on that hook two hours before the shelf was last seen full.', ['fact-1']),
+    disc('record-2', 'Recording on Danny\'s phone', 'record', 'Phone recording', 'observation', 'Phone recording, 18:12 to 18:43: scales and a ballad, orchid misters hissing underneath, the glasshouse clock striking the half hour.', 'Continuous sound from the orchid end through the whole window, with the room\'s own noises behind it.', ['fact-4']),
+    disc('record-3', 'Eighth tray on the courier van', 'physical', 'Courier van check', 'observation', 'Courier van check: the bay tally has the nursery trolley staged at 18:25 and signed to the courier at 18:45 by R. Mayhew, curator, as on every dispatch night; the trolley carries eight trays against a dispatch entry of seven; the eighth bears the Hartwell violet label, destination rewritten over the original in the green dispatch ink that lives in the curator\'s desk tidy, to a private address the courier\'s manifest has in the same hand as the dispatch entries; the office handset is cordless, and the courier heard her on it at the bay.', 'The missing tray went out on the trolley the curator stages every night, with a tag rewritten in her ink to a collector\'s address, and the phone call travelled with her.', ['fact-3']),
+  ],
+  redHerrings: [
+    pub('exhibit-4', 'Volunteer on the visiting grower', 'red_herring', 'Volunteer\'s statement', 'character_claim', 'Volunteer\'s statement: a visiting grower asked twice during the afternoon which shelf held the Hartwell violets, photographed the labels, and was still in the car park at half past six.', 'The grower was waiting for a lift, in sight of the desk, and never came back inside after four.'),
+  ],
+  suggestedQuestions: [
+    ask('question-1', 'How did your wand end up under the violet shelf?', 'evidence', 1, [], ['fact-1'], 'safe'),
+    ask('question-2', 'Were you at the violet shelf tonight?', 'alibi', 2, [], ['fact-2'], 'safe'),
+    ask('question-3', 'Who\'d pay for a tray of those violets?', 'motive', 3, [], ['fact-5'], 'safe'),
+    ask('question-4', 'Who was singing at the far end at half past six?', 'evidence', 4, [], ['fact-4'], 'safe'),
+    ask('question-5', 'Did anyone come through while you were at the far end?', 'timeline', 1, ['fact-2'], ['fact-3'], 'contextual'),
+    ask('question-6', 'Who could move a whole tray without anyone noticing?', 'follow_up', 2, ['record-1'], ['fact-3'], 'contextual'),
+  ],
+  answerKey: { verdict: 'innocent',
+    pivotal: [
+      { evidenceId: 'exhibit-5', why: 'Someone was at the far end at half past six, and the recording shows it was Danny, for the whole window.' },
+      { evidenceId: 'record-2', why: 'The recording keeps Danny at the orchid end, with the room\'s own sounds behind him, through the whole window.' },
+      { evidenceId: 'record-3', why: 'The violet tray is on the trolley the curator staged, one tray over the dispatch entry, with its tag rewritten in her ink to a private address.' },
+    ],
+    misleading: [{ evidenceId: 'exhibit-4', why: 'The grower was in the car park in sight of the desk and never came back inside.' }] },
+  solvabilityPath: [
+    { questionId: 'question-1', alternativePhrasings: ['Is that your wand under the shelf?', 'When did you last use the wand?'], expectedFactIds: ['fact-1'], why: 'The wand went on the hook at four and predates the theft.' },
+    { questionId: 'question-2', alternativePhrasings: ['Where were you at twenty past six?', 'Why is the time blank on the violet row?'], expectedFactIds: ['fact-2'], why: 'He initials the sheet before the round; the orchids took the hour.' },
+    { questionId: 'question-4', alternativePhrasings: ['What was the singing the volunteer heard?', 'What\'s on your phone from tonight?'], expectedFactIds: ['fact-4'], why: 'He admits the audition recording, which unlocks a continuous sound record.' },
+    { questionId: 'question-5', alternativePhrasings: ['Did anyone pass you while you were watering?', 'Who else was in the glasshouse?'], expectedFactIds: ['fact-3'], why: 'He saw the curator stop the trolley at the violet shelf.' },
+  ],
+});

@@ -1,154 +1,22 @@
-import { createHash } from 'node:crypto';
 import type { Scenario } from './schema';
-import { fingerprint } from './fingerprint';
+import case01 from './cases/01-open-day-at-brindle';
+import case02 from './cases/02-six-trays-then-five';
+import case03 from './cases/03-reversed-festival-arrows';
+import case04 from './cases/04-wednesday-count';
+import case05 from './cases/05-salted-dye-vat';
+import case06 from './cases/06-twenty-past-ten-at-the-dome';
+import case07 from './cases/07-silent-ferry-bell';
+import case08 from './cases/08-cold-pantry-ledger';
+import case09 from './cases/09-going-going';
+import case10 from './cases/10-overwritten-ridge';
+import case11 from './cases/11-thirty-seconds-a-move';
+import case12 from './cases/12-results-final';
+import case13 from './cases/13-rule-six';
+import case14 from './cases/14-twelve-grams-light';
+import case15 from './cases/15-cream-paper-letters';
+import case16 from './cases/16-call-point-four';
 
-// Each dossier below authors a different causal mechanism. The assembler supplies only
-// common contract structure, not randomly substituted story facts.
-const dossiers = [
-  {
-    title:'The Counterweight Receipt', setting:'The fictional Brindle civic clock workshop', role:'clock restorer', name:'Mara Vell', guilty:true,
-    crime:'A brass counterweight was stolen from a sealed demonstration clock.',
-    event:'Mara removed the weight through the maintenance hatch and hid it in a padded tool roll.',
-    motive:'She wanted to sell the metal to cover a private workshop debt.', means:'A triangular service key opened the rear hatch without disturbing the display seal.',
-    alibi:'I stayed at the clock bench during the demonstration break.',
-    observations:['The front display seal is intact.','The workshop ledger assigns the triangular service key to Mara.','The clock stopped at 19:10, before visitors returned.'],
-    facts:['The rear maintenance hatch bypasses the front seal.','I used my triangular key at 19:10 and wrapped the weight in my tool roll.','My tool roll is still in the locked bench drawer; you may inspect it.'],
-    clues:['A rear hatch provides a second route into the clock.','Mara describes removing the weight using her assigned key.','Inspection of the indicated drawer finds the weight inside the padded roll.'],
-    why:['The unbroken front seal does not exclude removal.','The admission matches the key ledger and stopped clock.','Recovery in the identified hiding place corroborates the admission.'],
-    secret:'I had an overdue workshop debt.', lie:'I may initially decline to discuss the size of my workshop debt; I must not deny the debt or alter the removal facts.',
-    red:'A visitor wore a coat with unusually large pockets.', redTruth:'The visitor arrived after the clock stopped; pocket size supplies no access evidence.',
-  },
-  {
-    title:'The Violet Glasshouse', setting:'The fictional Orrel botanical conservatory', role:'night gardener', name:'Ivo Fen', guilty:false,
-    crime:'A rare violet seed tray disappeared during the evening watering cycle.',
-    event:'The curator diverted the labelled tray onto the outbound nursery trolley before the gardener arrived.',
-    motive:'The curator wanted to conceal an unauthorized exchange with a private collector.', means:'The curator changed the trolley destination label.',
-    alibi:'I was in the potting room at 19:10, practising a song for a community audition.',
-    observations:['An empty square remains on the violet shelf.','A damp gardening glove lies beside the shelf.','The dispatch book records a nursery trolley departing at 19:10.'],
-    facts:['My glove was left there during the afternoon watering.','The shelf camera prints the curator loading the labelled tray at 19:10; I can show you the print.','The potting room recorder captured my audition practice continuously from 19:05 to 19:15.'],
-    clues:['The glove predates the disappearance.','The camera print shows the curator placing the identifiable tray on the trolley.','The recorder and room entry log place Ivo away from the shelf throughout removal.'],
-    why:['An old glove does not timestamp a theft.','The identifiable tray and curator establish an alternative remover.','Independent timing supports the gardener’s account.'],
-    secret:'I was secretly rehearsing for an amateur singing audition.', lie:'I may call the audition practice routine equipment checks until asked about the recording.',
-    red:'Ivo gave a vague account of his evening work.', redTruth:'The vagueness concealed an embarrassing audition, not the tray removal.',
-  },
-  {
-    title:'The Reversed Festival Arrows', setting:'The fictional Ternbridge lantern festival office', role:'route coordinator', name:'Nessa Quill', guilty:true,
-    crime:'Paid route signs were deliberately reversed, diverting visitors away from a rival stall.',
-    event:'Nessa printed reversed arrow overlays and attached them to the two junction signs.',
-    motive:'She wanted the visitors diverted toward her sibling’s stall.', means:'A mirrored print setting and removable paste changed the arrows without replacing the boards.',
-    alibi:'I walked the junction route at 19:10 to check the lanterns.',
-    observations:['Two arrows point opposite the approved map.','The boards are undamaged beneath paper overlays.','Nessa signed out the portable festival printer.'],
-    facts:['The arrows are pasted overlays, not rotated boards.','My printer history contains the mirrored arrow job at 19:05.','I pasted those arrows at 19:10 so the crowd would pass my sibling’s stall.'],
-    clues:['Peeling a corner exposes the original correct arrow.','The signed-out printer retains the reversed arrow job.','Nessa admits placing overlays for a specific commercial benefit.'],
-    why:['The physical alteration was deliberate.','The print history connects preparation to the assigned equipment.','The admission accounts for both placement and motive.'],
-    secret:'My sibling runs the stall on the diverted route.', lie:'I may initially describe the stallholder as an acquaintance rather than volunteering that we are siblings.',
-    red:'A rival stallholder complained loudly before opening.', redTruth:'A complaint proves frustration, not access to the printer or altered signs.',
-  },
-  {
-    title:'The Borrowed Applause', setting:'The fictional Wrenfold community theatre', role:'sound operator', name:'Tavi Reed', guilty:false,
-    crime:'The ticket takings envelope was taken from the stage office.',
-    event:'The treasurer put the takings into a costume hamper and wheeled it out during rehearsal.',
-    motive:'The treasurer intended to conceal a shortfall in a separate club account.', means:'An authorized office key and the costume hamper concealed the envelope.',
-    alibi:'I was in the sound booth throughout the 19:05 to 19:15 rehearsal.',
-    observations:['The office lock is undamaged.','Tavi’s voice can be heard on an office rehearsal speaker.','A costume hamper was wheeled out at 19:10.'],
-    facts:['The office speaker was playing my prerecorded applause announcement.','The booth control log and continuous rehearsal video show me operating live cues from 19:05 to 19:15.','The loading camera shows the treasurer putting the marked envelope in the costume hamper.'],
-    clues:['The announcement file predates the evening and is not a live microphone feed.','Synchronized video and live control inputs place Tavi in the booth.','The marked envelope is visible in the treasurer’s hands on the loading camera.'],
-    why:['Hearing a recorded voice cannot place its speaker in the office.','Independent concurrent activity establishes an alibi.','The camera identifies the actual remover.'],
-    secret:'I recorded applause to make my amateur performance sound more popular.', lie:'I may call my recording a standard test file instead of admitting the vanity project.',
-    red:'Tavi deleted a sound file after rehearsal.', redTruth:'The deleted file was an embarrassing applause experiment, preserved in backup.',
-  },
-  {
-    title:'The Salted Dye Vat', setting:'The fictional Alderwake textile cooperative', role:'dye technician', name:'Orin Vale', guilty:true,
-    crime:'A cooperative fabric batch was intentionally spoiled with salt.',
-    event:'Orin emptied a measured salt bag into a vat calibrated for a salt-free pigment.',
-    motive:'He hoped a failed batch would discredit the new dye process he opposed.', means:'A salt bag from his calibration kit was tipped through the sampling port.',
-    alibi:'I was beside the vat at 19:10 conducting a sample check.',
-    observations:['The fabric has a uniform pale band.','The vat lid seal is intact.','Orin’s kit inventory is missing one measured salt bag.'],
-    facts:['The sampling port can admit powder while the main lid stays sealed.','The retained vat sample contains the exact salt concentration produced by one kit bag.','I poured my salt bag through the port at 19:10 to make the new process fail.'],
-    clues:['The openable sample port bypasses the lid seal.','The retained sample matches a measured kit bag rather than a minor residue.','Orin admits the deliberate addition and intended process failure.'],
-    why:['The lid seal does not prevent this method.','The quantity ties the damage to the missing supply.','The admission connects method, timing and motive.'],
-    secret:'I had argued that the new process would make my old training irrelevant.', lie:'I may initially say I welcomed the new process while hiding my fear of becoming irrelevant.',
-    red:'A junior weaver washed a cup beside the vat.', redTruth:'The cup held clean water and cannot account for the measured salt quantity.',
-  },
-  {
-    title:'The Observatory Delay', setting:'The fictional Dunmere public observatory', role:'visitor guide', name:'Sela Moss', guilty:false,
-    crime:'A donated star-chart folio vanished from its locked reading drawer.',
-    event:'The archivist moved the folio into an outbound restoration crate using a spare drawer key.',
-    motive:'The archivist intended to sell one chart and blame a visitor.', means:'A spare key and falsely labelled restoration crate enabled removal.',
-    alibi:'I was leading a recorded telescope demonstration between 19:05 and 19:15.',
-    observations:['The reading drawer is empty but undamaged.','Sela’s tour ended later than the posted schedule.','An outbound restoration crate was sealed at 19:10.'],
-    facts:['I delayed the tour because I had forgotten a constellation name and checked my notes.','The telescope recording shows me with the visitors continuously from 19:05 to 19:15.','The crate packing image shows the folio’s unique torn corner and the archivist’s spare key.'],
-    clues:['The delay was a private teaching embarrassment.','The recording independently places Sela at the telescope.','The packing image identifies both the missing folio and the archivist’s access method.'],
-    why:['A delayed tour does not imply drawer access.','The complete recording excludes the removal window.','The alternate remover and container explain the disappearance.'],
-    secret:'I forgot a basic constellation name while giving the tour.', lie:'I may blame the delay on telescope focus instead of my forgotten lesson.',
-    red:'Sela kept a folded chart in a coat pocket.', redTruth:'It was a modern tour handout without the donated folio’s torn corner.',
-  },
-  {
-    title:'The Silent Ferry Bell', setting:'The fictional Mallowreach canal ferry depot', role:'maintenance scheduler', name:'Bren Ash', guilty:true,
-    crime:'The departure bell was disabled to cause a rival crew to miss its service slot.',
-    event:'Bren inserted a felt wedge into the bell striker before the departure test.',
-    motive:'He wanted the rival crew marked unreliable so his own crew would receive their preferred slot.', means:'A service panel latch allowed insertion of a felt wedge into the striker.',
-    alibi:'I inspected the bell cabinet at 19:10 before departure.',
-    observations:['The electrical indicator lit normally during the silent test.','Bren signed the bell cabinet inspection sheet.','The cabinet latch has no damage.'],
-    facts:['The working indicator rules out a power cut but not a blocked striker.','A felt wedge in the striker bears the batch mark of my maintenance kit.','I placed that wedge at 19:10 to make the other crew miss its slot.'],
-    clues:['The electrical test passes while the striker cannot travel.','Inspection reveals a marked wedge from Bren’s issued kit.','Bren admits the intentional obstruction and scheduling motive.'],
-    why:['The fault is mechanical rather than a general outage.','The recovered item connects the method to issued materials.','The admission explains intentional sabotage at the relevant time.'],
-    secret:'I wanted my crew to take the preferred service slot.', lie:'I may initially call my interest in the preferred slot routine scheduling rather than personal ambition.',
-    red:'The rival pilot was seen arguing with a passenger.', redTruth:'The argument has no connection to the internal bell obstruction.',
-  },
-  {
-    title:'The Cold Pantry Ledger', setting:'The fictional Elmbrook communal bakery', role:'apprentice baker', name:'Lio Wren', guilty:false,
-    crime:'A competition recipe ledger was removed from the communal pantry.',
-    event:'The visiting judge slipped the ledger into a flour delivery folder while checking pantry stock.',
-    motive:'The judge wanted to pass the winning recipe to a favored entrant.', means:'An oversized delivery folder concealed the narrow ledger.',
-    alibi:'I was in the cooling room between 19:05 and 19:15 practising decorative icing.',
-    observations:['The ledger’s labelled shelf is empty.','Lio has flour on both sleeves.','A delivery folder left with the visiting judge at 19:10.'],
-    facts:['My flour came from practising a surprise anniversary cake, not from the pantry.','The cooling room time-lapse records my icing practice continuously from 19:05 to 19:15.','The stock camera shows the judge sliding the red-spined ledger into the delivery folder.'],
-    clues:['The flour-covered practice cake is still in the cooling room.','Continuous time-lapse establishes Lio’s location during removal.','The red spine and shelf label identify the object concealed by the judge.'],
-    why:['Flour alone cannot establish pantry access.','The independent record supports the apprentice’s alibi.','The camera identifies an alternate actor and concealment method.'],
-    secret:'I was making a surprise anniversary cake and had spoiled several practice attempts.', lie:'I may say I was cleaning the cooling room to protect the surprise.',
-    red:'Lio refused to describe the contents of a covered cake box.', redTruth:'The box contains an embarrassing practice cake, not the ledger.',
-  },
+export const fixtures: Scenario[] = [
+  case01, case02, case03, case04, case05, case06, case07, case08,
+  case09, case10, case11, case12, case13, case14, case15, case16,
 ];
-
-export const fixtures: Scenario[] = dossiers.map((d, i) => {
-  const uuid = createHash('sha256').update(`handcrafted-v1-${i}`).digest('hex');
-  const suspectId = 'suspect';
-  const facts = [...d.facts, d.secret].map((statement, j) => ({ id:`fact-${j+1}`, statement, disclosurePhrases:[statement], prerequisiteFactIds:[] }));
-  const evidence = (description:string, j:number, hidden:boolean) => ({
-    id:`${hidden?'clue':'exhibit'}-${j+1}`, title:description.split(' ').slice(0,7).join(' ').replace(/[.,;:]$/, ''), description,
-    category:'record' as const, source:hidden ? 'Case record inspected after the suspect identifies it' : 'Initial scene report',
-    kind:hidden && d.guilty && ((i === 0 && j === 1) || (i !== 0 && j === 2)) ? 'character_claim' as const : 'observation' as const, interpretation:hidden ? d.why[j] : 'This observation requires context; it is not itself a verdict.',
-    availability:hidden ? 'discoverable' as const : 'public' as const, trigger:{ allFactIds:hidden?[`fact-${j+1}`]:[] },
-  });
-  const s: Scenario = {
-    scenarioId:`${uuid.slice(0,8)}-${uuid.slice(8,12)}-4${uuid.slice(13,16)}-a${uuid.slice(17,20)}-${uuid.slice(20,32)}`,
-    schemaVersion:1, generatorVersion:'handcrafted-1', version:1, title:d.title, genre:'cozy procedural', setting:d.setting,
-    crime:d.crime, difficulty:i%3===0?'easy':i%3===1?'medium':'hard', estimatedDurationSeconds:180, fingerprint:'0'.repeat(64), status:'validated',
-    publicBriefing:`${d.crime} The incident took place at ${d.setting}, shortly before the evening visitors returned. ${d.name}, the ${d.role}, is the one person available for your interview. Staff have preserved the scene and collected three initial observations, but their first impressions may be incomplete. Nobody was hurt. Your task is to decide whether this suspect was responsible for the reported incident, using the records and statements you can verify. You have three minutes of conversation once the interview starts. Ask about the timing, the suspect’s work, and how the available evidence fits together. Other people may be relevant, but you cannot interview them directly. The suspect can point you toward records already held by the case team. An awkward answer is a reason to investigate, not a verdict. Explain your final decision with specific evidence.`,
-    suspect:{id:suspectId,name:d.name,ageRange:'30–45',role:d.role,avatarDescription:'Fictional adult in practical work clothes, expressive face, neutral background.',speechStyle:'Plain language, short answers, specific times when known.',attitude:'Tense, careful with words, and responsive to specific questions.',relationship:'On duty at the venue that evening.'},
-    truth:{guilty:d.guilty,culpritId:d.guilty?suspectId:'other-actor',actualEvent:d.event,motive:d.motive,opportunity:'The incident occurred during the 19:10 visitor break.',means:d.means,realAlibi:d.alibi,
-      explanation:`${d.event} ${d.means} ${d.motive} ${d.why.join(' ')} ${d.redTruth}`,
-      timeline:[{id:'time-1',actorId:suspectId,at:'2026-01-10T19:00:00Z',until:'2026-01-10T19:04:00Z',location:'entry hall',description:'The suspect arrives for the evening duty.',requiresAccess:false},
-        {id:'time-2',actorId:suspectId,at:'2026-01-10T19:05:00Z',until:'2026-01-10T19:15:00Z',location:d.guilty?'incident area':'alibi area',description:d.alibi,requiresAccess:true},
-        {id:'time-3',actorId:d.guilty?suspectId:'other-actor',at:'2026-01-10T19:10:00Z',until:'2026-01-10T19:11:00Z',location:'incident area',description:d.event,requiresAccess:true},
-        {id:'time-4',actorId:suspectId,at:'2026-01-10T19:20:00Z',until:'2026-01-10T19:21:00Z',location:'interview room',description:'The suspect is available for interview.',requiresAccess:false}],
-      access:[{actorId:suspectId,location:d.guilty?'incident area':'alibi area',from:'2026-01-10T19:00:00Z',until:'2026-01-10T20:00:00Z'}, {actorId:'other-actor',location:'incident area',from:'2026-01-10T19:00:00Z',until:'2026-01-10T20:00:00Z'}]},
-    knowledge:{facts,knows:facts.map(f=>f.id),doesNotKnow:['The private thoughts of people outside this dossier.'],admitsImmediately:['fact-1'],revealsWhenQuestioned:['fact-2','fact-3','fact-4'],misleading:[{factId:'fact-4',realFact:d.secret,permittedDeception:d.lie}]},
-    publicEvidence:d.observations.map((e,j)=>evidence(e,j,false)), discoverableEvidence:d.clues.map((e,j)=>evidence(e,j,true)),
-    redHerrings:[{id:'report-1',title:'An awkward detail',description:d.red,category:'red_herring',source:'Initial witness report',kind:'character_claim',interpretation:d.redTruth,availability:'public',trigger:{allFactIds:[]}}],
-    suggestedQuestions:[
-      {id:'question-1',text:`How do you explain this observation: “${d.observations[0]}”?`,category:'evidence',priority:1,prerequisiteIds:[],revealsFactIds:['fact-1'],spoilerSafety:'safe'},
-      {id:'question-2',text:`As the ${d.role}, what records can verify your movements around 19:10?`,category:'alibi',priority:2,prerequisiteIds:[],revealsFactIds:['fact-2'],spoilerSafety:'safe'},
-      {id:'question-3',text:`What could explain the reported incident at ${d.setting}?`,category:'access',priority:3,prerequisiteIds:[],revealsFactIds:['fact-3'],spoilerSafety:'safe'},
-      {id:'question-4',text:'Is there something personal making you reluctant to explain?',category:'motive',priority:4,prerequisiteIds:[],revealsFactIds:['fact-4'],spoilerSafety:'safe'},
-      {id:'question-5',text:'How does that new lead fit the original scene report?',category:'follow_up',priority:1,prerequisiteIds:['clue-1'],revealsFactIds:['fact-2'],spoilerSafety:'contextual'},
-      {id:'question-6',text:'Where can the case team verify the record you mentioned?',category:'timeline',priority:2,prerequisiteIds:['fact-2'],revealsFactIds:['fact-3'],spoilerSafety:'contextual'},
-    ],
-    answerKey:{verdict:d.guilty?'guilty':'innocent',pivotal:d.why.map((why,j)=>({evidenceId:`clue-${j+1}`,why})),misleading:[{evidenceId:'report-1',why:d.redTruth}]},
-    solvabilityPath:[1,2,3].map(n=>({questionId:`question-${n}`,alternativePhrasings:n===1?[`What does the first observation mean: ${d.observations[0]}`, 'Could the initial scene report have another explanation?']:n===2?['Where were you at ten past seven?', 'What independent record supports your account of the evening?']:['What should the case team inspect to establish what actually happened?', 'How can we check the method and person responsible?'],expectedFactIds:[`fact-${n}`],why:d.why[n-1]})),
-    scoring:{version:1,verdict:500,evidence:300,facts:150,time:50},
-  };
-  s.fingerprint=fingerprint(s);
-  return s;
-});

@@ -9,16 +9,17 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint lib/scenarios lib/server scripts tests app/api",
-    "test": "node --conditions=react-server --import tsx --test tests/unit.test.ts tests/provider-facts.test.ts tests/live-transcript.test.ts",
+    "test": "node --conditions=react-server --import tsx --test tests/unit.test.ts tests/provider-facts.test.ts tests/live-transcript.test.ts tests/lead-matching.test.ts tests/session-flow.test.ts",
     "test:db": "node --import tsx --test tests/db.test.ts",
     "scenarios:generate": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/generate.ts",
     "scenarios:validate": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/validate.ts",
-    "scenarios:seed": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/generate.ts --fixtures --count 8",
-    "scenarios:seed-sql": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/seed-sql.ts",
+    "scenarios:seed": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/generate.ts --fixtures --count 16",
     "scenarios:publish": "node --env-file-if-exists=.env.local --import tsx scripts/scenarios/publish.ts",
     "agents:cleanup": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/cleanup-agents.ts",
     "agents:cleanup:watch": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/cleanup-agents.ts --watch",
-    "scenarios:install-sql": "node --import tsx scripts/scenarios/install-sql.ts"
+    "data:build": "node --import tsx scripts/data/build.ts",
+    "data:setup": "supabase db push --remote --include-seed",
+    "data:setup:local": "supabase db push --include-seed"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

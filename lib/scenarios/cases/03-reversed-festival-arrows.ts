@@ -1,0 +1,82 @@
+import { ask, build, disc, fact, grant, pub, span } from './helpers';
+
+// 2. Guilty, hard. Nessa says she printed only labels; the printer log and her own radio call catch her.
+export default build(2, {
+  title: 'The Reversed Festival Arrows', genre: 'cozy procedural', setting: 'Ternbridge lantern festival',
+  crime: 'Two junction signs on the paid lantern route were deliberately reversed before the gates opened, sending the morning crowd down Quay Lane and away from the Mill Yard stalls.',
+  publicBriefing: 'By half past eight on the first paying morning of the Ternbridge lantern festival, the Mill Yard stallholders were at the office door. The two arrows at the west junction pointed the wrong way, and the first few hundred visitors through the gate had been walked down Quay Lane instead. Both boards were correct when the committee signed them off in the route book on Friday evening. Nessa Quill coordinates the route and holds the office keys. Her family have traded on Quay Lane since her father\'s time, and last year the Mill Yard chair accused her in a public meeting of fixing the pitch draw against him, which is why she ran this year\'s draw with a witness and the Mill Yard stalls drew the gate. A signage contractor had a crew at that junction from seven on a scheduled collection, and a Quay Lane stallholder heard someone at the boards in the dark before that. Nessa is in the office with the route book and the gate count.',
+  suspect: { id: 'suspect', name: 'Nessa Quill', ageRange: 'mid thirties', role: 'route coordinator', avatarDescription: 'A high-visibility tabard over a smart coat, and a lanyard so heavy with keys that it makes a sound when she turns.',
+    speechStyle: 'Procedural. Quotes the schedule and gives times to the minute.',
+    attitude: 'Composed and courteous, with one eye on the radio clipped to her tabard.',
+    relationship: 'Three seasons on the route; fell out in public with the Mill Yard stallholders\' chair over last year\'s pitch draw, and the two have not spoken since. Her brother has the family pie stall on Quay Lane.' },
+  truth: { guilty: true, culpritId: 'suspect',
+    actualEvent: 'Nessa printed a mirrored arrow sheet on the office printer just after six, pasted the overlays onto both west junction boards at twenty to seven, radioed an all clear, and was back in the office before the gates.',
+    motive: 'Her brother Davey runs the family pie stall, pitch seven on Quay Lane, and drew the far end of the route in the pitch draw she ran with a witness to answer last year\'s accusation; she wanted the first-morning crowd walked past him anyway.',
+    opportunity: 'She had the route to herself between the stallholders\' setup at half past six and the contractor\'s arrival at seven.',
+    means: 'A mirrored print setting and removable paste put a wrong arrow over each painted board without marking it.',
+    realAlibi: 'I was in the festival office from half past seven doing the gate count, and I was there when the complaint came in at half past eight.',
+    explanation: 'The arrows are paper overlays, which is a print job, and the printer log has a mirrored arrow sheet under Nessa\'s user at seven minutes past six, against her claim that she printed only labels. The steward\'s radio log puts her at the west junction at eighteen minutes to seven, which is when the Quay Lane stallholder heard the scraping, and before the contractor\'s crew signed in at seven. The gate tally shows Quay Lane gained, and the licence register shows that pitch seven is her brother\'s. The contractor\'s docket covers four empty frames stacked behind the boards; the boards were already pasted when the crew arrived.',
+    timeline: [
+      span('time-1', 'suspect', '2026-05-09', '06:00', '06:15', 'festival office', 'Nessa prints the mirrored arrow sheet on the office printer.', true),
+      span('time-2', 'suspect', '2026-05-09', '06:35', '06:50', 'west junction', 'Nessa pastes the overlays onto both junction boards and radios an all clear.', true),
+      span('time-3', 'suspect', '2026-05-09', '07:30', '09:00', 'festival office', 'Nessa runs the gate count; the Mill Yard complaint arrives at half past eight.', true),
+      span('time-4', 'suspect', '2026-05-09', '09:30', '09:31', 'interview room', 'Nessa sits down for the interview.', false),
+    ],
+    access: [grant('suspect', '2026-05-09', 'festival office', '05:30', '12:00'), grant('suspect', '2026-05-09', 'west junction', '05:30', '12:00')] },
+  knowledge: {
+    facts: [
+      fact('fact-1', 'The arrows are paper overlays pasted over the painted boards.',
+        ['They\'re paper overlays stuck on the boards.', 'Someone pasted paper over the painted arrows.', 'You can peel those arrows off with a thumbnail.', 'The boards themselves are still painted right.']),
+      fact('fact-2', 'I used the office printer just after six this morning.',
+        ['I was on the office printer just after six.', 'I did run a job through the printer early.', 'The early print job was mine.', 'I printed something before the stalls set up.']),
+      fact('fact-3', 'I walked the route past the west junction at about twenty to seven, before the gates opened.',
+        ['I was at the west junction before the gates opened.', 'I walked the route around twenty to seven.', 'I checked the junction boards myself early on.', 'I was out on the route before seven.'], ['fact-2']),
+      fact('fact-4', 'Pitch seven on Quay Lane is the family pie stall, and my brother Davey runs it.',
+        ['Pitch seven is my brother\'s.', 'My brother runs the pie stall on Quay Lane.', 'Davey on Quay Lane is my brother.', 'The Quay Lane pie stall is family.']),
+      fact('fact-5', 'I ran the pitch draw this year with a witness, and the Mill Yard stalls drew the junction nearest the gate.',
+        ['I ran the pitch draw this year.', 'Mill Yard won the gate pitch in my draw.', 'The draw gave Mill Yard the better junction.', 'Quay Lane drew the far end of the route.']),
+    ],
+    knows: ['fact-1', 'fact-2', 'fact-3', 'fact-4', 'fact-5'], doesNotKnow: ['What the stallholders have told the office.', 'Whether the steward kept the radio log.', 'What the contractor\'s crew saw.'],
+    admitsImmediately: ['fact-1'], revealsWhenQuestioned: ['fact-2', 'fact-3', 'fact-4', 'fact-5'],
+    misleading: [
+      { factId: 'fact-2', realFact: 'I used the office printer just after six this morning.', permittedDeception: 'I may insist the only thing I have printed this week was the lantern labels, on Thursday, until the printer job log is put to me.' },
+      { factId: 'fact-4', realFact: 'Pitch seven on Quay Lane is the family pie stall, and my brother Davey runs it.', permittedDeception: 'I may describe the pitch seven stallholder as someone I know from committee meetings until asked straight whether we are related.' },
+    ] },
+  publicEvidence: [
+    pub('exhibit-2', 'Paste along the board edges', 'physical', 'Route steward\'s walk', 'observation', 'Route steward\'s walk: both west junction boards carry a line of fresh paste along the top edge and a faint paper lip at one corner; the route boards are painted, and nothing is pasted to them in the normal way of things.', 'The boards were altered with something stuck on, recently, rather than turned or repainted.'),
+    pub('exhibit-3', 'Gate and stall tallies at nine', 'record', 'Festival office', 'observation', 'Festival office: 906 passes through the gate by 09:00; stall tallies at 09:00, Mill Yard 41, Quay Lane 212.', 'Quay Lane gained the crowd. Who on Quay Lane gained most is a separate question.'),
+    pub('exhibit-4', 'Mill Yard stallholder on the arrows', 'testimony', 'Stallholder\'s statement', 'character_claim', 'Stallholder\'s statement: a Mill Yard stallholder set up at half past six with both arrows pointing her way.', 'Narrows the change to between half past six and the gates at eight.'),
+    pub('exhibit-5', 'Quay Lane stallholder on the noise', 'testimony', 'Stallholder\'s statement', 'character_claim', 'Stallholder\'s statement: a Quay Lane stallholder unloading in the dark at about twenty to seven heard scraping and muttering from the west junction boards and took it for the contractor\'s crew.', 'Someone was at the boards at twenty to seven. The stallholder assumed who; nobody saw.'),
+  ],
+  discoverableEvidence: [
+    disc('record-1', 'Peeled corner on the west board', 'physical', 'Route steward\'s walk', 'observation', 'Route steward\'s walk: lifting the paper lip on the west board shows the painted arrow beneath pointing the approved way.', 'Overlays, so the arrows were printed and placed, which needs a printer and a morning.', ['fact-1']),
+    disc('record-2', 'Printer job log', 'record', 'Festival office', 'observation', 'Festival office printer log: 06:07, "junction arrows mirror", 2 pages, user Quill; the job before it is "lantern labels", Thursday 16:20, user Quill.', 'Against her account of printing only labels. A mirrored arrow job is the overlay.', ['fact-2']),
+    disc('record-3', 'Radio log entry from the west junction', 'testimony', 'Steward\'s radio log', 'character_claim', 'Steward\'s radio log: 06:42, Quill from the west junction, "boards fine, all clear"; contractor\'s crew signs in at the gate at 07:00.', 'Her own voice puts her at the boards at the minute the stallholder heard scraping, twenty minutes before the crew arrived.', ['fact-3']),
+    disc('record-4', 'Stall licence for pitch seven', 'record', 'Stall licence register', 'observation', 'Stall licence register: Quay Lane pitch seven, "Quill\'s Pies", licensee D. Quill, pitch assigned by the coordinator\'s draw on the first of April.', 'The stall that gained shares her surname and lost the draw she ran.', ['fact-4']),
+  ],
+  redHerrings: [
+    pub('exhibit-1', 'Quay Lane stallholder on the contractor', 'red_herring', 'Stallholder\'s statement', 'character_claim', 'Stallholder\'s statement: from seven a Quay Lane stallholder watched the signage contractor\'s two crew at the west junction with a van, handling the frames stacked behind the boards.', 'The crew signed in at the gate at seven for four empty frames, after the boards were already pasted, and their docket says so.'),
+  ],
+  suggestedQuestions: [
+    ask('question-1', 'What\'s the paste along the top of the junction boards for?', 'evidence', 1, [], ['fact-1'], 'safe'),
+    ask('question-2', 'Who gains if the crowd goes down Quay Lane instead of Mill Yard?', 'motive', 2, [], ['fact-4'], 'safe'),
+    ask('question-3', 'How did the pitches get decided this year?', 'motive', 3, [], ['fact-5'], 'safe'),
+    ask('question-4', 'Where were you from six this morning until the gates opened?', 'alibi', 4, [], ['fact-3'], 'safe'),
+    ask('question-5', 'What came off the office printer this morning?', 'access', 1, ['record-1'], ['fact-2'], 'contextual'),
+    ask('question-6', 'Where did that print job go once it was in your hands?', 'follow_up', 2, ['fact-2'], ['fact-3'], 'contextual'),
+  ],
+  answerKey: { verdict: 'guilty',
+    pivotal: [
+      { evidenceId: 'exhibit-3', why: 'The tally shows which lane gained the crowd, which is where the motive lives.' },
+      { evidenceId: 'record-2', why: 'A mirrored arrow job under her user at six, against her claim of printing only labels.' },
+      { evidenceId: 'record-3', why: 'Her own radio call puts her at the boards at the minute of the scraping, before the crew arrived.' },
+      { evidenceId: 'record-4', why: 'The stall that gained is her brother\'s and lost the draw she ran.' },
+    ],
+    misleading: [{ evidenceId: 'exhibit-1', why: 'The crew signed in at seven for four empty frames, on a docket; the boards were pasted twenty minutes earlier.' }] },
+  solvabilityPath: [
+    { questionId: 'question-1', alternativePhrasings: ['How do two arrows end up backwards without a mark on the boards?', 'Were the boards turned round?'], expectedFactIds: ['fact-1'], why: 'Overlays mean a print job, which is a record.' },
+    { questionId: 'question-5', alternativePhrasings: ['Did you print anything this morning?', 'Would the printer log show your jobs?'], expectedFactIds: ['fact-2'], why: 'She claims labels only, then concedes an early job when the log is put to her.' },
+    { questionId: 'question-6', alternativePhrasings: ['Were you on the route before the gates?', 'Who put the sheet on the boards?'], expectedFactIds: ['fact-3'], why: 'She was at the west junction at twenty to seven, inside the window.' },
+    { questionId: 'question-2', alternativePhrasings: ['Who runs the pie stall on Quay Lane?', 'Any family trading at the festival?'], expectedFactIds: ['fact-4'], why: 'The gaining stall is her brother\'s.' },
+  ],
+});

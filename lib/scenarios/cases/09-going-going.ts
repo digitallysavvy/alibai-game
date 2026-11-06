@@ -1,0 +1,81 @@
+import { ask, build, disc, fact, grant, pub, span } from './helpers';
+
+// 8. Innocent, hard. Dee hides her own bid on the lamp; the manager wrote the slip while Dee read the board on air.
+export default build(8, {
+  title: 'Going, Going', genre: 'cozy procedural', setting: 'Stoneport community radio station',
+  crime: 'The winning phone bid for the lighthouse lamp at the station\'s on-air charity auction was written on a slip with no call behind it, in a name nobody can trace.',
+  publicBriefing: 'Stoneport Community Radio ran its spring charity auction live on Saturday night, with phone bids taken in the back room on three lines and web bids printing off the station\'s form. The top lot was the old lighthouse lamp. At the close, nine o\'clock, the presenter read out a winning phone bid of eight hundred in the name of a listener called R. Castle. The number on the slip belongs to a shop that shut last year, and nobody of that name has come forward. The slip is from the pad for line two, where Dee Marlow was rostered from eight until the close. The total read out on air cleared the five thousand a local benefactor had promised to match, by twenty. The station manager wants the slip explained before the benefactor is told anything, and Dee has been asked to stay behind in the green room.',
+  suspect: { id: 'suspect', name: 'Dee Marlow', ageRange: 'thirties', role: 'phone-room volunteer', avatarDescription: 'Station polo shirt, headset pushed down round her neck, a pen behind one ear.',
+    speechStyle: 'Quick and chatty, laughs in the wrong places, apologises when she interrupts.',
+    attitude: 'Keen to be useful, and proud of the night\'s total.',
+    relationship: 'Two years on the phones; put in for the station\'s first paid assistant post, which the manager fills next month. Her father kept the lighthouse the lamp came out of.' },
+  truth: { guilty: false, culpritId: 'manager',
+    actualEvent: 'The station manager sent Dee through to the studio to read the running total, sat down at line two, wrote a slip for eight hundred in an invented name on the line two pad, and carried it to the presenter at two minutes to nine.',
+    motive: 'The benefactor\'s match pledge paid only when the on-air total passed five thousand, and the manager had promised the trustees it would.',
+    opportunity: 'With Dee in the studio, the manager had the phone room to herself from ten to nine until the close.',
+    means: 'A slip from the line two pad in block capitals, written with the line silent and a number copied from an old listener list.',
+    realAlibi: 'I was on line two till about ten to nine, then the manager had me in the studio at the guest microphone till just after the close.',
+    explanation: 'The switchboard shows line two silent from ten to nine until after the close, so the slip was written without a call. The studio desk\'s fader log has the guest microphone open from six minutes to nine until the close, and the presenter\'s running order has Dee\'s name against it, two rooms from the pad. The presenter had the slip from the manager\'s hand, with the words that line two had just taken it. The three hundred and eighty web bid was Dee\'s own, in her initials, for a lamp her father kept lit, and it broke a volunteer rule and nothing else. The caller after the close was the man she had outbid, checking the result from home.',
+    timeline: [
+      span('time-1', 'suspect', '2026-03-07', '20:00', '20:52', 'phone room', 'Dee takes bids on line two and fills a slip for each call.', false),
+      span('time-2', 'suspect', '2026-03-07', '20:53', '21:01', 'studio', 'Dee reads the running total from the pledge board at the guest microphone.', false),
+      span('time-3', 'manager', '2026-03-07', '20:53', '20:57', 'phone room', 'The manager sits at line two and writes the eight hundred slip on Dee\'s pad.', true),
+      span('time-4', 'manager', '2026-03-07', '20:58', '20:59', 'studio corridor', 'The manager hands the slip to the presenter at the studio door.', false),
+      span('time-5', 'suspect', '2026-03-07', '21:30', '21:31', 'green room', 'Dee sits down for the interview.', false),
+    ],
+    access: [grant('suspect', '2026-03-07', 'phone room', '19:30', '22:00'), grant('manager', '2026-03-07', 'phone room', '19:00', '22:00')] },
+  knowledge: {
+    facts: [
+      fact('fact-1', 'The manager sent me through to the studio at about ten to nine to read the pledge board on air.',
+        ['The manager sent me through to the studio.', 'I was reading the pledge board on air.', 'I went through to read the board at ten to nine.', 'They wanted a voice on the board for the close.']),
+      fact('fact-2', 'When I left the phone room the manager sat down at line two with my pad in front of her.',
+        ['The manager took my chair at line two.', 'She was sitting at my line when I left.', 'My pad was in front of the manager.', 'The manager had line two after I went through.'], ['fact-1']),
+      fact('fact-3', 'The three hundred and eighty web bid was mine, put in from the office under my initials, because my dad kept that light.',
+        ['That three eighty bid was mine.', 'I put the web bid in myself.', 'I bid on the lamp for my dad.', 'My dad kept that light for years.']),
+      fact('fact-4', 'The match pledge only paid out once the on-air total passed five thousand.',
+        ['The pledge needed five thousand on air.', 'Under five thousand and the match was gone.', 'The benefactor doubles it past five thousand.', 'Five thousand was the line for the match.']),
+      fact('fact-5', 'The manager warned the whole room before the show that the match pledge would make or break the year.',
+        ['The manager was sweating the total all night.', 'She kept checking the board every few minutes.', 'The match pledge was make or break for her.', 'She had promised the trustees the match.']),
+    ],
+    knows: ['fact-1', 'fact-2', 'fact-3', 'fact-4', 'fact-5'], doesNotKnow: ['Who wrote the slip.', 'Whose number is on it.', 'What the manager did with the pad after she left the room.'],
+    admitsImmediately: ['fact-4'], revealsWhenQuestioned: ['fact-1', 'fact-2', 'fact-3', 'fact-5'],
+    misleading: [
+      { factId: 'fact-3', realFact: 'The three hundred and eighty web bid was mine, put in from the office under my initials, because my dad kept that light.', permittedDeception: 'I may suggest the web bid came from a listener on the lobby wifi, until the detective puts the initials or my father to me.' },
+    ] },
+  publicEvidence: [
+    pub('exhibit-2', 'Winning slip from the line two pad', 'record', 'Bid slip', 'observation', 'Bid slip, line two pad, time box 20:57: "lighthouse lamp, eight hundred, R. Castle", block capitals, the number box filled with a line that belongs to a shop that shut last year.', 'Written on her pad, in her window, in capitals that match none of her other slips. Either she wrote it or someone wrote it in her seat.'),
+    pub('exhibit-3', 'Switchboard log for line two', 'record', 'Switchboard log', 'observation', 'Switchboard log: line two, last call connected 20:48:12 and cleared 20:49:40; next call 21:03:05. Lines one and three carried calls through to 21:00.', 'The slip has a time with no call behind it. Whoever wrote it sat in the phone room with a silent line.'),
+    pub('exhibit-4', 'Web bid export for the lamp', 'record', 'Bid form export', 'observation', 'Bid form export: 20:31:22, lighthouse lamp, three hundred and eighty, name "D. M.", submitted from the station\'s own office network.', 'Someone inside the building bid on the lamp under initials, against the volunteer rule. The eight hundred slip lifted the lot past it.'),
+    pub('exhibit-5', 'Engineer on the voice in the phone room', 'testimony', 'Engineer\'s statement', 'character_claim', 'Engineer\'s statement: passing the phone room door at about five to nine he heard one voice, a woman\'s, say "eight hundred, lovely" and the scratch of a pen, and kept walking. The station rota pinned on the phone room door has the manager in the studio with the presenter from ten to nine for the close.', 'A woman spoke a bid aloud in the phone room with no call to speak to. Two women had been in that room that evening, and the rota puts one of them somewhere else.'),
+  ],
+  discoverableEvidence: [
+    disc('record-1', 'Studio desk fader log and running order', 'record', 'Studio desk', 'observation', 'Studio desk fader log: guest microphone opened 20:54:10, closed 21:00:40, no gaps; the presenter\'s running order for the close, marked up live in his hand, reads "20:54 Dee on guest mic, board reads every half minute, 21:00 thank Dee by name".', 'The desk and the presenter\'s own sheet keep her at the guest microphone through the whole window the slip could have been written in.', ['fact-1']),
+    disc('record-2', 'Presenter on where the slip came from', 'testimony', 'Presenter\'s statement', 'character_claim', 'Presenter\'s statement: the manager came through from the phone room at two minutes to nine with the slip in her hand, said line two had just taken it, and he read it at the close; the manager was in the studio for none of the close, whatever the rota planned.', 'The slip reached the studio in the manager\'s hand, from a room Dee had left, and the rota was a plan she did not keep.', ['fact-2']),
+    disc('record-3', 'Benefactor\'s pledge letter and the board', 'record', 'Pledge file', 'observation', 'Pledge file: the benefactor\'s letter doubles the auction total only when the on-air close exceeds five thousand; the manager\'s own board photo at 20:56 shows four thousand six hundred, with the lamp at three hundred and eighty.', 'Short with the lamp at three eighty; twenty over with it at eight hundred. The slip was sized to the pledge.', ['fact-4', 'fact-5']),
+    disc('record-4', 'Confirmation on Dee\'s phone', 'record', 'Phone screen', 'observation', 'Bid form confirmation on Dee\'s phone, 20:31: three hundred and eighty, name "D. M.", note field "for Dad, he kept that light going".', 'The web bid was hers, under her own name, and it breaks a volunteer rule and nothing else.', ['fact-3']),
+  ],
+  redHerrings: [
+    pub('exhibit-1', 'Presenter on the caller after the close', 'red_herring', 'Presenter\'s statement', 'character_claim', 'Presenter\'s statement: the studio line rang after nine and again a minute later, a man asking whether the lamp was still open and sounding put out when told it had gone.', 'He had been outbid at twenty past eight and was checking from his home line. He touched no slip.'),
+  ],
+  suggestedQuestions: [
+    ask('question-1', 'Who wrote the eight hundred slip on your pad?', 'evidence', 1, [], ['fact-1'], 'safe'),
+    ask('question-2', 'Was the three hundred and eighty web bid yours?', 'motive', 2, [], ['fact-3'], 'safe'),
+    ask('question-3', 'What did the match pledge hang on?', 'motive', 3, [], ['fact-4'], 'safe'),
+    ask('question-4', 'Who was sweating the number most?', 'motive', 4, [], ['fact-5'], 'safe'),
+    ask('question-5', 'Walk me through your last ten minutes before the close.', 'alibi', 5, [], ['fact-1'], 'safe'),
+    ask('question-6', 'Who had your chair after you left the line?', 'access', 1, ['fact-1'], ['fact-2'], 'contextual'),
+    ask('question-7', 'How did that slip get to the presenter while you were on air?', 'follow_up', 2, ['record-1'], ['fact-2'], 'contextual'),
+  ],
+  answerKey: { verdict: 'innocent',
+    pivotal: [
+      { evidenceId: 'exhibit-3', why: 'The slip was written in the phone room with the line silent, in the minutes the desk log has Dee two rooms away.' },
+      { evidenceId: 'record-1', why: 'The fader log and the presenter\'s running order keep Dee at the guest microphone through the whole window, by name.' },
+      { evidenceId: 'record-2', why: 'The slip came to the presenter in the manager\'s hand, from the chair Dee had given up.' },
+    ],
+    misleading: [{ evidenceId: 'exhibit-1', why: 'The caller was the man Dee had outbid, ringing from home after the close.' }] },
+  solvabilityPath: [
+    { questionId: 'question-1', alternativePhrasings: ['Where were you at three minutes to nine?', 'Why is there a bid on your pad with no call?'], expectedFactIds: ['fact-1'], why: 'She was sent to the studio, which unlocks the desk log.' },
+    { questionId: 'question-6', alternativePhrasings: ['Who was in the phone room after you left?', 'Who had your pad?'], expectedFactIds: ['fact-2'], why: 'The manager took her chair, which unlocks the presenter\'s account of the slip.' },
+    { questionId: 'question-2', alternativePhrasings: ['Did you bid on the lamp yourself?', 'Whose initials are D. M.?'], expectedFactIds: ['fact-3'], why: 'Her hidden bid turns out to be her own, open and harmless.' },
+  ],
+});

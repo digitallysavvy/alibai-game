@@ -5,17 +5,21 @@ import { AVATAR_VOICES } from '../lib/game/avatar-voices';
 import assert from 'node:assert/strict';
 import { fixtures } from '../lib/scenarios/fixtures';
 import { fingerprint, similarity } from '../lib/scenarios/fingerprint';
-import { validateScenario } from '../lib/scenarios/validate';
-import { briefing, notebook, score, suggestions } from '../lib/scenarios/engine';
+import { validateScenario, validateCaseSet } from '../lib/scenarios/validate';
+import { briefing, leads, notebook, score, suggestions } from '../lib/scenarios/engine';
 import { generateScenario, HumanReviewRequired, StructuredJsonProvider, type JsonProvider } from '../lib/scenarios/generator';
 import type { Scenario } from '../lib/scenarios/schema';
+import { stepTimer } from '../lib/server/timing';
+import { formatClock, secondsLeft, startCountdown } from '../lib/game/clock';
 const clone = (index = 0) => structuredClone(fixtures[index]);
 const validateChanged = (s: Scenario) => { s.fingerprint = fingerprint(s); return validateScenario(s); };
 test('eight diverse handcrafted mysteries satisfy the same production validator', () => {
- assert.equal(fixtures.length, 8); assert.equal(new Set(fixtures.map(s => s.fingerprint)).size, 8);
- assert.equal(new Set(fixtures.map(s => s.setting)).size, 8);
+ assert.equal(fixtures.length, 16); assert.equal(new Set(fixtures.map(s => s.fingerprint)).size, 16);
+ assert.equal(new Set(fixtures.map(s => s.setting)).size, 16);
  for (const s of fixtures) assert.deepEqual(validateScenario(s).errors, [], s.title);
- assert.equal(fixtures.filter(s => s.truth.guilty).length, 4);
+ assert.equal(fixtures.filter(s => s.truth.guilty).length, 8);
+ for (const s of fixtures) assert.equal(s.answerKey.pivotal.filter(p => s.publicEvidence.some(e => e.id === p.evidenceId)).length, 1, s.title);
+ assert.deepEqual(validateCaseSet(fixtures), []);
 });
 test('an innocent suspect with an explicitly permitted unrelated lie remains innocent', () => {
  const s = clone(1); assert.ok(s.knowledge.misleading.length); assert.equal(s.truth.guilty, false);
@@ -56,8 +60,21 @@ test('public DTOs contain no truth, answer keys, unlock conditions or undiscover
  const serialized = JSON.stringify(dto);
  for (const forbidden of ['answerKey','interpretation','trigger','truth','knowledge','revealsFactIds','prerequisiteIds',s.truth.actualEvent,s.discoverableEvidence[0].description]) assert.equal(serialized.includes(forbidden), false, forbidden);
  assert.equal(dto.initialSuggestedQuestions.length, 3);
+ assert.equal('category' in dto.initialSuggestedQuestions[0], false);
  assert.equal(dto.publicEvidence.some(e => (e.category as string) === 'red_herring'), false);
- assert.equal(dto.publicEvidence.find(e => e.id === 'report-1')?.category, 'testimony');
+ assert.equal(dto.publicEvidence.find(e => e.id === clone().redHerrings[0].id)?.category, 'testimony');
+});
+test('every briefing lists only the public suspect fields and leaves out private actor direction', () => {
+ const casting = { avatarId: 'avatar-test', voiceId: 'voice-test' };
+ for (const s of fixtures) {
+  const { publicSuspect } = briefing(s, 'session-test', casting);
+  assert.deepEqual(Object.keys(publicSuspect).sort(), ['id','name','role','relationship','avatarDescription','avatarId','voiceId'].sort(), s.title);
+  assert.equal(publicSuspect.avatarId, casting.avatarId, s.title);
+  for (const dto of [briefing(s, 'session-test'), briefing(s, 'session-test', casting)]) {
+   const serialized = JSON.stringify(dto);
+   for (const forbidden of ['speechStyle','attitude',s.suspect.speechStyle,s.suspect.attitude]) assert.equal(serialized.includes(forbidden), false, `${s.title}: ${forbidden}`);
+  }
+ }
 });
 test('evidence IDs cannot reveal private classifications', () => {
  const s = clone(); s.redHerrings[0].id = 'red-herring-1'; s.answerKey.misleading[0].evidenceId = 'red-herring-1';
@@ -69,20 +86,79 @@ test('question selection is pure and cannot unlock a clue; fact discovery unlock
  assert.deepEqual(facts, []); assert.equal(notebook(s, facts).length, 4);
  assert.equal(notebook(s, ['fact-1']).length, 5);
  const hiddenRed = clone(); hiddenRed.redHerrings[0].availability = 'discoverable'; hiddenRed.redHerrings[0].trigger.allFactIds = ['fact-1'];
- assert.equal(notebook(hiddenRed, ['fact-1']).find(e => e.id === 'report-1')?.category, 'testimony');
+ assert.equal(notebook(hiddenRed, ['fact-1']).find(e => e.id === hiddenRed.redHerrings[0].id)?.category, 'testimony');
  assert.ok(suggestions(s, ['fact-1']).questions.some(q => q.id === 'question-5'));
  assert.equal(suggestions(s, [], 3).more, null);
  assert.throws(() => suggestions(s, [], -1));
 });
+test('leads carry only allowlisted fields, and an open lead never names the fact it would reveal', () => {
+ const s = clone();
+ const before = leads(s, []);
+ assert.ok(before.leads.length >= 3); assert.deepEqual(before.admissions, []);
+ for (const lead of before.leads) { assert.deepEqual(Object.keys(lead).sort(), ['facts','id','status','text']); assert.equal(lead.status, 'open'); assert.deepEqual(lead.facts, []); }
+ const serialized = JSON.stringify(before);
+ for (const forbidden of ['revealsFactIds','prerequisiteIds','category','priority','spoilerSafety','statement','disclosurePhrases', ...s.knowledge.facts.map(f => f.statement), ...s.knowledge.facts.map(f => f.id)]) assert.equal(serialized.includes(forbidden), false, forbidden);
+ const after = leads(s, ['fact-1']);
+ const answered = after.leads.filter(l => l.status === 'answered');
+ assert.deepEqual(answered.map(l => l.id), s.suggestedQuestions.filter(q => q.revealsFactIds.includes('fact-1')).map(q => q.id));
+ for (const lead of answered) { assert.deepEqual(lead.facts, [{ id: 'fact-1', statement: s.knowledge.facts[0].statement }]); assert.deepEqual(Object.keys(lead.facts[0]).sort(), ['id','statement']); }
+ // Facts that are still undiscovered stay out, whatever their lead says.
+ const afterText = JSON.stringify(after);
+ for (const fact of s.knowledge.facts.slice(1)) { assert.equal(afterText.includes(fact.statement), false, fact.id); assert.equal(afterText.includes(`"${fact.id}"`), false, fact.id); }
+ // An unknown fact ID is ignored rather than trusted.
+ assert.deepEqual(leads(s, ['not-a-fact']), before);
+});
+test('a recorded fact that no lead on the page lists still shows, as an admission', () => {
+ const s = clone();
+ // question-6 reveals fact-3 behind fact-2, and question-7 reveals it with no prerequisite; hide both routes.
+ s.suggestedQuestions = s.suggestedQuestions.filter(q => !q.revealsFactIds.includes('fact-3'));
+ const page = leads(s, ['fact-3']);
+ assert.deepEqual(page.admissions, [{ id: 'fact-3', statement: s.knowledge.facts[2].statement }]);
+ assert.equal(page.leads.some(l => l.status === 'answered'), false);
+ // Once a lead that lists the fact is eligible, it owns the fact and the admission goes away.
+ const listed = leads(clone(), ['fact-3']);
+ assert.deepEqual(listed.admissions, []);
+ assert.ok(listed.leads.some(l => l.status === 'answered' && l.facts[0]?.id === 'fact-3'));
+});
+test('follow-ups surface as facts unlock them, in priority order, and a player with facts left always has an open lead', () => {
+ const s = clone();
+ const start = leads(s, []).leads.map(l => l.id);
+ assert.equal(start.includes('question-5'), false, 'needs record-1'); assert.equal(start.includes('question-6'), false, 'needs fact-2');
+ const withOne = leads(s, ['fact-1']).leads;
+ assert.deepEqual(withOne.slice(0, 2).map(l => [l.id, l.status]), [['question-1', 'answered'], ['question-5', 'open']], 'record-1, unlocked by fact-1, brings its priority-1 follow-up up beside the answered lead');
+ assert.ok(leads(s, ['fact-1','fact-2']).leads.some(l => l.id === 'question-6' && l.status === 'open'));
+ // Every reachable state of every case: facts remaining implies an open lead on the page.
+ for (const scenario of fixtures) {
+  const ids = scenario.knowledge.facts.map(f => f.id);
+  for (let mask = 0; mask < 1 << ids.length; mask++) {
+   const found = ids.filter((_, i) => mask & (1 << i));
+   if (!scenario.knowledge.facts.every(f => !found.includes(f.id) || f.prerequisiteFactIds.every(id => found.includes(id)))) continue;
+   const page = leads(scenario, found);
+   assert.ok(page.leads.length <= 10, scenario.title);
+   if (found.length < ids.length) assert.ok(page.leads.some(l => l.status === 'open'), `${scenario.title} with ${found.join(',')}`);
+   else assert.equal(page.leads.some(l => l.status === 'open'), false, scenario.title);
+   assert.equal(page.leads.filter(l => l.status === 'answered').flatMap(l => l.facts).concat(page.admissions).every(f => found.includes(f.id)), true, scenario.title);
+   for (const id of found) assert.ok(page.leads.some(l => l.facts.some(f => f.id === id)) || page.admissions.some(f => f.id === id), `${scenario.title}: ${id} must show`);
+  }
+ }
+});
 test('deterministic score caps, rounding, unknown facts, duplicate citations and misleading evidence', () => {
  const s = clone(), allFacts = s.knowledge.facts.map(f => f.id), pivotal = s.answerKey.pivotal.map(p => p.evidenceId);
  assert.equal(score(s, 'guilty', pivotal, allFacts, 0).total, 1000);
- assert.equal(score(s, 'innocent', pivotal, allFacts, 180).total, 450);
- assert.equal(score(s, 'guilty', ['report-1'], [], 180).evidencePoints, 0);
- assert.equal(score(s, 'guilty', pivotal, [], 180).evidencePoints, 0);
+ assert.equal(score(s, 'innocent', pivotal, allFacts, 180).total, 150);
+ assert.equal(score(s, 'innocent', pivotal, allFacts, 180).evidencePoints, 0);
+ assert.equal(score(s, 'guilty', [s.redHerrings[0].id], [], 180).evidencePoints, 0);
+ // One pivotal item in each case is public, so a sharp reader scores without any facts.
+ assert.equal(score(s, 'guilty', pivotal.filter(id => s.publicEvidence.some(e => e.id === id)), [], 180).evidencePoints, Math.floor(300 / pivotal.length));
+ const everything = notebook(s, allFacts).map(e => e.id);
+ assert.ok(everything.length >= pivotal.length * 2);
+ assert.equal(score(s, 'guilty', everything, allFacts, 180).evidencePoints, 0);
+ assert.equal(score(s, 'guilty', [...pivotal, s.redHerrings[0].id], allFacts, 180).evidencePoints, Math.floor(300 * (pivotal.length - 1) / pivotal.length));
  assert.deepEqual(score(s, 'guilty', [...pivotal,...pivotal], [...allFacts,...allFacts,'unknown'], 90), score(s, 'guilty', pivotal, allFacts, 90));
  assert.equal(score(s, 'guilty', [], ['fact-1'], 90).factPoints, 37);
- assert.equal(score(s, 'guilty', [], [], 999).timePoints, 0);
+ assert.equal(score(s, 'guilty', [], ['fact-1'], 999).timePoints, 0);
+ assert.equal(score(s, 'guilty', [], [], 0).timePoints, 0);
+ assert.equal(score(s, 'guilty', [], ['fact-1'], 0).timePoints, 50);
  assert.throws(() => score(s, 'guilty', [], [], NaN));
 });
 test('generation retries are bounded and feed deterministic failures back to author', async () => {
@@ -164,4 +240,65 @@ test('SQL roster and application actor/voice catalog agree', async () => {
  const rows=[...sql.matchAll(/\('([a-f0-9-]{36})','[^']+','([^']+)'\)/g)].map(match=>[match[1],match[2]]);
  assert.equal(rows.length,14);
  assert.deepEqual(rows.sort(),AVATAR_VOICES.map(v=>[v.avatarId,v.voiceId]).sort());
+});
+
+test('scripts/data matches the migrations and cases: run pnpm data:build if this fails', async () => {
+ const { readFile, readdir } = await import('node:fs/promises');
+ const cases = await readFile('scripts/data/cases.sql', 'utf8'), install = await readFile('scripts/data/install.sql', 'utf8');
+ for (const s of fixtures) { assert.ok(cases.includes(s.fingerprint), s.title); assert.ok(install.includes(s.fingerprint), s.title); }
+ for (const file of await readdir('supabase/migrations')) assert.ok(install.includes(file), file);
+});
+test('startup timing logs step durations only, including when a step fails', async () => {
+ const lines: string[] = [], timer = stepTimer('agent', line => lines.push(line));
+ assert.equal(await timer.step('load', async () => 'secret-value'), 'secret-value');
+ await assert.rejects(timer.step('claim', async () => { throw new Error('secret-error'); }));
+ timer.done();
+ assert.equal(lines.length, 1); assert.doesNotMatch(lines[0], /secret/);
+ const logged = JSON.parse(lines[0].replace('[timing] agent ', ''));
+ assert.deepEqual(Object.keys(logged), ['load', 'claim', 'total', 'ok']); assert.equal(logged.ok, false);
+ for (const key of ['load', 'claim', 'total']) assert.equal(typeof logged[key], 'number');
+});
+const startedAt = Date.UTC(2026, 10, 5, 12);
+// A single large mock tick runs only one link of a timer chain, so advance as real time would.
+const advance = (timers: { tick(ms: number): void }, ms: number) => { for (let i = 0; i < ms; i += 100) timers.tick(Math.min(100, ms - i)); };
+test('the display clock applies the server correction and stops at the end time', () => {
+ const timing = { startedAt, endedAt: null, clockOffset: 0 };
+ assert.equal(secondsLeft({ ...timing, startedAt: null }, startedAt), 180);
+ assert.equal(secondsLeft(timing, startedAt), 180); assert.equal(secondsLeft(timing, startedAt - 500), 180);
+ assert.equal(secondsLeft(timing, startedAt + 179_001), 1); assert.equal(secondsLeft(timing, startedAt + 180_000), 0);
+ assert.equal(secondsLeft({ ...timing, clockOffset: 5000 }, startedAt), 175);
+ assert.equal(secondsLeft({ ...timing, endedAt: startedAt + 60_000 }, startedAt + 170_000), 120);
+ assert.equal(formatClock(125), '02:05');
+});
+test('the countdown ticks once a second and expiry fires once, on time', t => {
+ t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: startedAt });
+ let ticks = 0, expired = 0;
+ startCountdown({ startedAt, clockOffset: 0, onTick: () => ticks++, onExpire: () => expired++ });
+ advance(t.mock.timers, 10_000); assert.equal(ticks, 11); assert.equal(expired, 0);
+ advance(t.mock.timers, 169_999); assert.equal(expired, 0);
+ t.mock.timers.tick(1); assert.equal(expired, 1);
+ advance(t.mock.timers, 60_000); assert.equal(expired, 1);
+});
+test('the countdown expires by server time, at once if already over, and not after cancelling', t => {
+ t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: startedAt });
+ let expired = 0;
+ startCountdown({ startedAt, clockOffset: 175_000, onExpire: () => expired++ });
+ advance(t.mock.timers, 4999); assert.equal(expired, 0); t.mock.timers.tick(1); assert.equal(expired, 1);
+ startCountdown({ startedAt: startedAt - 200_000, clockOffset: 0, onExpire: () => expired++ }); assert.equal(expired, 2);
+ const cancel = startCountdown({ startedAt: Date.now(), clockOffset: 0, onExpire: () => expired++ });
+ cancel(); advance(t.mock.timers, 200_000); assert.equal(expired, 2);
+});
+test('a device that sleeps past the deadline expires at its next step', t => {
+ t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: startedAt });
+ let expired = 0;
+ startCountdown({ startedAt, clockOffset: 0, onExpire: () => expired++ });
+ t.mock.timers.setTime(startedAt + 500_000); t.mock.timers.tick(1000); assert.equal(expired, 1);
+});
+test('the session wires expiry to ending the interview, and only the clock ticks', async () => {
+ const session = await readFile('components/game/production-session.tsx', 'utf8');
+ assert.match(await readFile('components/game/tape-recorder.tsx', 'utf8'), /const left = useSecondsLeft\(timing\)/);
+ assert.doesNotMatch(session, /setInterval\(\(\) => setNow|setNow/);
+ const expiry = session.slice(session.indexOf('onExpire:'), session.indexOf('voice.endSession])', session.indexOf('onExpire:')));
+ assert.match(expiry, /voice\.disconnect\(\)/); assert.match(expiry, /voice\.endSession\(\)\.then\(data => \{ applyView\(data\)/);
+ assert.match(session, /view\?\.session\.state !== 'active' \|\| started === null\) return\n\s+return startCountdown/);
 });

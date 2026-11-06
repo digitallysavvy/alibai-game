@@ -1,13 +1,13 @@
 # Scenario authoring and pool operations
 
-The eight handcrafted dossiers in `lib/scenarios/fixtures.ts` are an offline starting pool, not randomly reskinned stories. They cover theft, diversion, contamination and mechanical sabotage in eight fictional venues. Four suspects are guilty and four are innocent; innocent suspects conceal an audition, a vanity recording, a forgotten lesson and a surprise cake. Every case has an executable three-question path plus optional personal-secret and evidence followups. The assembler supplies common contract structure, while causal facts, records, means and motives are authored per dossier.
+The handcrafted cases in `lib/scenarios/cases/` are an offline starting pool, not randomly reskinned stories. They cover theft, diversion, contamination and mechanical sabotage in eight fictional venues. Four suspects are guilty and four are innocent. Guilty suspects hold a false claim that a record can catch; innocent suspects may hide something unrelated, and at least one hides nothing. `validateCaseSet` fails if a public word or case shape splits on guilt. Every case has an executable path plus optional followups, and exactly one pivotal item is public. Everything a player or suspect reads is authored per case. See [writing-cases.md](writing-cases.md).
 
 Run from `alibai-ui`:
 
 ```sh
 pnpm scenarios:validate
-pnpm scenarios:seed-sql
-# Start/reset local Supabase using its CLI; db reset executes supabase/seed.sql.
+pnpm data:build
+# Start/reset local Supabase using its CLI; db reset executes scripts/data/cases.sql.
 pnpm scenarios:generate --fixtures --count 8 --dry-run
 pnpm scenarios:seed
 pnpm scenarios:generate --count 30 --difficulty mixed --seed 2026 --concurrency 2 --retries 3
@@ -45,7 +45,7 @@ The fingerprint includes normalized setting, crime, suspect role, timeline, pivo
 
 The score is deterministic: correct verdict 500; `floor(300 × distinct visible pivotal citations / pivotal count)`; `floor(150 × distinct verified discovered facts / case fact count)`; `floor(50 × max(0, 180 − server elapsed seconds) / 180)`. The server freezes elapsed time when interrogation ends. A wrong verdict can still earn evidence/fact/time points. Red herrings, duplicate IDs and undiscovered evidence earn no support points. Results reveal the private explanation only after the persisted verdict locks.
 
-Disclosure verification is intentionally conservative: a trusted provider stores a real suspect turn, then an exact complete canonical disclosure sentence from the immutable fact record must match. Detective speech, arbitrary client assertions, substring mentions, missing turns and turns outside the active window are rejected. This is a response-format constraint on the agent, not a magic player question: the agent can recognize any semantically appropriate question and speak the authored sentence. More flexible paraphrase validation needs an independently audited transcript validator before enabling it.
+Disclosure verification works on spoken text. A trusted provider stores a real suspect turn, then the reply must assert one of the fact's scripted lines. Case, punctuation, apostrophes and contractions are ignored, and a lead-in or a second fact in the same reply is fine. The server rejects a line used in a denial, question, quote or hypothetical, or retracted in the next sentence, and Postgres confirms the line is in the stored turn. Each fact needs 3–5 lines of 4–12 plain words, unique to that fact and absent from every alibi and lie.
 
 ## Test coverage and limits
 
@@ -53,12 +53,12 @@ Unit tests cover all fixtures, permitted innocent lies, access/time/location con
 
 ## Applying the tables to an existing Supabase project
 
-The repository includes an additive SQL Editor bundle at `supabase/install.sql`, generated from the migration files and the validated fixture seed. Regenerate it with `node --import tsx scripts/scenarios/install-sql.ts` after changing migrations or fixtures.
+The repository includes an additive SQL Editor bundle at `scripts/data/install.sql`, generated from the migration files and the validated fixture seed. Regenerate it with `pnpm data:build` after changing migrations or fixtures.
 
 1. Select the exact intended project in the Supabase dashboard. The SQL file does not choose a project for you.
-2. Run `supabase/preflight.sql`. If it reports any existing app table or function, stop and adapt the migration to that schema; do not drop or replace existing tables or policies.
-3. If the collision checks are empty, run `supabase/install.sql` in the SQL Editor. The installation is one transaction and rejects collisions before changing anything.
-4. Run `supabase/postflight.sql`. All 21 app tables must show RLS enabled, browser execution of privileged RPCs must be false, sensitive-table SELECT privileges must be false for both browser roles, and the published handcrafted fixture count must be 8.
+2. Run `scripts/data/preflight.sql`. If it reports any existing app table or function, stop and adapt the migration to that schema; do not drop or replace existing tables or policies.
+3. If the collision checks are empty, run `scripts/data/install.sql` in the SQL Editor. The installation is one transaction and rejects collisions before changing anything.
+4. Run `scripts/data/postflight.sql`. All 21 app tables must show RLS enabled, browser execution of privileged RPCs must be false, sensitive-table SELECT privileges must be false for both browser roles, and the published handcrafted fixture count must be 8.
 5. Use the local integration suite against a disposable local project for concurrency and end-to-end SQL checks; the SQL Editor read checks alone do not prove concurrency behavior.
 
 The bundle creates no users and changes no existing Auth configuration or policies. Only owner-scoped SELECT policies are granted for player/session/clue/update records. Every game write and all private truth access require server credentials. Running the SQL Editor bundle does not automatically register versions in Supabase CLI migration history; reconcile the three applied versions before using later CLI migrations, rather than re-running the initial migrations.

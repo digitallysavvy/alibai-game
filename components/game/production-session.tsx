@@ -5,10 +5,12 @@ import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { gameRequest, sessionRequest, type PublicEvidence, type PublicQuestion, type SessionView } from '@/lib/game/api'
+import { gameRequest, sessionRequest, type PublicEvidence, type SessionView } from '@/lib/game/api'
 import { DecoRule, Eyebrow } from './deco'
 import { InterviewScreen } from './interview-screen'
+import { SessionClock } from './session-clock'
 import { useSuspectVoice } from '@/lib/agora/use-suspect-voice'
+import { secondsLeft, startCountdown } from '@/lib/game/clock'
 
 const buttonClass = 'min-h-12 rounded-none bg-gold px-6 font-mono text-xs uppercase tracking-widest text-obsidian hover:bg-ivory'
 
@@ -26,22 +28,16 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
   const [view, setView] = useState<SessionView | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [questions, setQuestions] = useState<PublicQuestion[]>([])
-  const [more, setMore] = useState<number | null>(null)
-  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null)
   const [decision, setDecision] = useState<'guilty' | 'innocent' | null>(null)
   const [evidenceIds, setEvidenceIds] = useState<string[]>([])
   const [reasoning, setReasoning] = useState('')
-  const [now, setNow] = useState(0)
   const [clockOffset, setClockOffset] = useState(0)
   const syncingFacts = useRef(false)
   const autoConnected = useRef(false)
-  const questionOffset = useRef(0)
+  const autoEnded = useRef(false)
   const applyView = useCallback((data: SessionView) => {
     setView(data)
     setClockOffset(Date.parse(data.serverTime) - Date.now())
-    // Background updates only carry page one; leave a page the player opened alone.
-    if(questionOffset.current === 0) { setQuestions(data.suggestions.questions); setMore(data.suggestions.more) }
   }, [])
   const refresh = useCallback(async () => {
     try {
@@ -68,6 +64,8 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
   }, [mode,view?.session.state,voice.phase,sessionId,applyView])
 
   useEffect(() => { void refresh() }, [refresh])
+  // Caches the SDK for the room. An import only: no client, no microphone, nothing billable.
+  useEffect(() => { if(mode === 'briefing') void import('agora-rtc-sdk-ng').catch(() => {}) }, [mode])
   useEffect(() => {
     let closed = false
     let dispose: (() => void) | undefined
@@ -88,53 +86,48 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [refresh])
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 250)
-    return () => window.clearInterval(timer)
-  }, [])
 
   async function action(actionName: string, body: unknown = {}) {
     setBusy(true); setError('')
-    try { await sessionRequest(sessionId, actionName, body); await refresh(); return true }
+    try {
+      // The end response is a full view. A verdict response is not, so that one re-reads.
+      if(actionName === 'end') applyView(await voice.endSession())
+      else { await sessionRequest(sessionId, actionName, body); await refresh() }
+      return true
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Request failed.'); return false }
     finally { setBusy(false) }
   }
-  async function nextQuestions() {
-    try {
-      const offset = more ?? 0
-      const page = await gameRequest<{ questions: PublicQuestion[]; more: number | null }>(`/api/sessions/${sessionId}/questions?offset=${offset}`)
-      questionOffset.current = offset
-      setQuestions(page.questions); setMore(page.more); setSelectedQuestion(null)
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not load questions.') }
-  }
   const started = view?.session.started_at ? Date.parse(view.session.started_at) : null
   const ended = view?.session.ended_at ? Date.parse(view.session.ended_at) : null
-  const left = started === null ? 180 : Math.max(0, Math.ceil(180 - ((ended ?? ((now || started - clockOffset) + clockOffset)) - started) / 1000))
-  const clock = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`
+  const timing = { startedAt: started, endedAt: ended, clockOffset }
   useEffect(() => {
-    if(mode !== 'interview' || view?.session.state !== 'active' || left > 0) return
-    void voice.disconnect()
-    void sessionRequest(sessionId,'end',{}).then(() => refresh()).catch(() => setError('The interview has ended. Please retry filing your verdict.'))
-  }, [mode, view?.session.state, left, sessionId, refresh, voice.disconnect])
+    if(mode !== 'interview' || view?.session.state !== 'active' || started === null) return
+    return startCountdown({ startedAt: started, clockOffset, onExpire: () => {
+      if(autoEnded.current) return
+      autoEnded.current = true
+      void voice.disconnect()
+      void voice.endSession().then(data => { applyView(data); setError('') }).catch(() => { autoEnded.current = false; setError('The interview has ended. Please retry filing your verdict.') })
+    } })
+  }, [mode, view?.session.state, started, clockOffset, applyView, voice.disconnect, voice.endSession])
   // Entering the room connects straight away. Failures fall back to the retry button.
   useEffect(() => {
     const state = view?.session.state
-    if(mode !== 'interview' || autoConnected.current || voice.phase !== 'idle' || left <= 0) return
+    if(mode !== 'interview' || autoConnected.current || voice.phase !== 'idle' || secondsLeft({ startedAt: started, endedAt: ended, clockOffset }, Date.now()) <= 0) return
     if(!state || !['created','preparing','active'].includes(state)) return
     autoConnected.current = true
     void voice.start()
-  }, [mode, view?.session.state, voice.phase, voice.start, left])
+  }, [mode, view?.session.state, voice.phase, voice.start, started, ended, clockOffset])
 
   // The room has its own one-viewport layout; the handlers stay here so the dossier pages share them.
-  if (mode === 'interview') return <InterviewScreen view={view} error={error} busy={busy} clock={clock} left={left} voice={voice}
-    questions={questions} more={more} selectedQuestion={selectedQuestion} onSelectQuestion={setSelectedQuestion} onNextQuestions={() => void nextQuestions()} onRefresh={() => void refresh()}
+  if (mode === 'interview') return <InterviewScreen view={view} error={error} busy={busy} timing={timing} voice={voice} onRefresh={() => void refresh()}
     onCancelConnection={async()=>{await voice.disconnect();await action('end')}}
     onRetryConnection={async () => { await voice.disconnect(); await voice.start() }}
     onEndInterview={async () => { if(!view) return; if(view.session.state === 'scored') router.push(`/game/${sessionId}/results`); else if(view.session.state === 'ended' || await action('end')) { await voice.disconnect(); router.push(`/game/${sessionId}/verdict`) } }} />
 
   return <main className="min-h-dvh bg-obsidian spotlight px-5 pb-16 pt-6 text-ivory">
     <div className="mx-auto max-w-3xl">
-      <header className="flex items-center justify-between gap-4"><Link href="/rules" className="label-mono text-gold">Rules / New case</Link><span className="font-mono text-sm text-gold">{clock}</span></header>
+      <header className="flex items-center justify-between gap-4"><Link href="/rules" className="label-mono text-gold">Rules / New case</Link><SessionClock timing={timing} className="font-mono text-sm text-gold" /></header>
       {error && <div role="alert" className="mt-6 border border-oxblood bg-oxblood/20 p-4 text-sm">{error}<button type="button" onClick={() => void refresh()} className="ml-3 underline">Retry</button></div>}
       {!view ? <p className="mt-12 label-mono">Opening case file…</p> : <>
         <Eyebrow className="mt-10">{mode === 'results' ? 'Case resolution' : mode === 'verdict' ? 'Detective’s report' : 'Case file'}</Eyebrow>
@@ -167,7 +160,7 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
           <section className="deco-frame mt-8 p-5"><h2 className="font-display text-2xl">What actually happened</h2><p className="mt-4 leading-relaxed text-ivory/80">{view.results.explanation}</p></section>
           <h2 className="mt-8 font-display text-2xl">Evidence you cited</h2><EvidenceList items={view.results.citedEvidence} />
           <h2 className="mt-8 font-display text-2xl">Important clues you missed</h2><EvidenceList items={view.results.missedImportantClues.map(clue => clue.evidence)} />
-          <div className="mt-8 flex gap-6"><Link className="text-gold underline" href="/rules">Take a new case</Link><Link className="text-gold underline" href="/leaderboard">Leaderboard</Link></div>
+          <div className="mt-8 flex gap-6"><Link className="text-gold underline" href="/rules">Take a new case</Link><Link className="text-gold underline" href="/leaderboard?fresh=1">Leaderboard</Link></div>
         </> : <p>File a verdict before opening the sealed case truth. <Link className="text-gold underline" href={`/game/${sessionId}/verdict`}>Open verdict form</Link></p>)}
       </>}
     </div>

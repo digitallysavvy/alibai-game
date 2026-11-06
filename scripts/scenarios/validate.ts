@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { fixtures } from '../../lib/scenarios/fixtures';
-import { validateScenario } from '../../lib/scenarios/validate';
+import { validateCaseSet, validateScenario } from '../../lib/scenarios/validate';
 import type { Scenario } from '../../lib/scenarios/schema';
 async function main() {
   const cases: { name: string; data: unknown }[] = fixtures.map(s => ({ name: s.title, data: s }));
@@ -19,6 +19,7 @@ async function main() {
    if (!result.valid) { console.error(`${name}: ${result.errors.join('; ')}`); process.exitCode = 1; }
    else if ('scenario' in result) { seen.push(result.scenario); console.log(`VALID ${name}`); }
   }
+  for (const error of validateCaseSet(fixtures)) { console.error(`Case set: ${error}`); process.exitCode = 1; }
   console.log(`Checked ${cases.length} fixture/generated records.`);
 }
 main().catch(error => { console.error(error instanceof Error ? error.message : 'Unknown CLI error'); process.exitCode = 1; });

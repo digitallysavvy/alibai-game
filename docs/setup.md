@@ -25,16 +25,14 @@ Copy the local Supabase URL and keys from `supabase status` into `.env.local`. S
 
 Legacy local installations may supply `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` instead. Only the URL and publishable/anon key belong in browser configuration. Never prefix the secret/service role key, Agora certificate or provider credentials with `NEXT_PUBLIC_`.
 
-Generate the checked fixture seed and apply the local schema:
+Create the tables and cases, then start the app:
 
 ```sh
-npm run scenarios:validate
-npm run scenarios:seed-sql
-supabase db reset
-npm run dev
+pnpm data:setup:local
+pnpm dev
 ```
 
-`supabase db reset` **recreates the local database** and executes `supabase/seed.sql`; use it only for disposable local data. To fill an already migrated database without resetting it, run `npm run scenarios:seed`. The eight cases need no model credentials. Register at `/rules`, confirm the email if requested, sign in, enter a detective name, and request a case. Local email confirmation messages appear in the email testing service reported by `supabase status`.
+`supabase db reset` **recreates the local database** and executes `scripts/data/cases.sql`; use it only for disposable local data. To fill an already migrated database without resetting it, run `npm run scenarios:seed`. The eight cases need no model credentials. Register at `/rules`, confirm the email if requested, sign in, enter a detective name, and request a case. Local email confirmation messages appear in the email testing service reported by `supabase status`.
 
 The scenario scripts load `.env.local` automatically. For standalone test commands, export the relevant environment variables or use the explicit `node --env-file` command below.
 
@@ -69,7 +67,7 @@ All session operations require the logged-in account. Auth is maintained in Http
 | `POST /api/sessions/:id/sync-facts` | Fetch trusted provider history on the server and verify canonical disclosures; accepts no client transcript or fact IDs. |
 | `POST /api/sessions/:id/verdict` | `{ verdict: "guilty" | "innocent", evidenceIds: string[], reasoning?: string }`. One immutable verdict; identical retries are safe. |
 | `GET /api/realtime-auth` | Authenticated user's short-lived token plus public Supabase URL/key for owner-filtered Realtime subscriptions. |
-| `GET /api/leaderboard` | Per-user `{ playerId, detectiveName, total, bestScore, gamesPlayed }`; no case secrets or transcripts. |
+| `GET /api/leaderboard` | Per-user `{ playerId, detectiveName, total, bestScore, gamesPlayed }`; no case secrets or transcripts. Cached at the CDN (`s-maxage=5, stale-while-revalidate=5`), so a new score reaches other players within about 10 seconds. The results page link and the Refresh button add a unique query parameter to skip the cache; the route ignores it. |
 
 Example join:
 
@@ -109,4 +107,4 @@ At the latest check, 18 unit tests, fixture validation, full TypeScript checking
 
 The three migrations and eight fixtures were applied to hosted Alibai (`vfqxxkvokbgrooxhkdmi`) through Supabase MCP. Its bounded rollback smoke passed 23 checks, including actual authenticated-role RLS denial and deterministic scoring. Docker access was denied, so the separate simultaneous multi-connection database tests remain unexecuted; the hosted distinct-allocation check was sequential within one transaction. Agora CLI DNS/config access prevented credential binding and live project checks. Scenario model calls, agent start/stop, Anam video, audio roundtrips and a timed human playtest remain unverified. These are environment/integration gaps, not passing tests. See [scenario test coverage](scenarios.md#test-coverage-and-limits) and [Agora runtime status](agora.md#runtime-status).
 
-The prepared `supabase/install.sql` is an alternative SQL Editor installation path for a new schema, with collision checks and a transaction. Run `preflight.sql` first and `postflight.sql` afterward. It does not populate the Supabase CLI migration ledger; reconcile migration history before subsequently using CLI push on that same database. The hosted Alibai database now has these migrations and fixture records; do not run the fresh-install bundle against it again. Reconcile the hosted migration ledger with the local filenames before later CLI pushes.
+The prepared `scripts/data/install.sql` is an alternative SQL Editor installation path for a new schema, with collision checks and a transaction. Run `preflight.sql` first and `postflight.sql` afterward. It does not populate the Supabase CLI migration ledger; reconcile migration history before subsequently using CLI push on that same database. The hosted Alibai database now has these migrations and fixture records; do not run the fresh-install bundle against it again. Reconcile the hosted migration ledger with the local filenames before later CLI pushes.

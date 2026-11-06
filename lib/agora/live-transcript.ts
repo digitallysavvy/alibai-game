@@ -1,13 +1,14 @@
 import type { AgentTranscription, AgoraVoiceAI, AgoraVoiceAIEvents, RTCEngine, TranscriptHelperItem, TranscriptHelperMode, UserTranscription } from 'agora-agent-client-toolkit'
 import type { RTMClient, RTMConfig } from 'agora-rtm'
 
-// Live captions for the Detective's Notebook, adapted from the official Next.js
+// Live captions for the tape recorder in the interrogation room, adapted from the official Next.js
 // quickstart (LandingPage.tsx RTM setup, ConversationComponent.tsx toolkit lifecycle).
 // Display only: nothing here may reach the server. Fact discovery stays with the
 // trusted provider-history sync, so this module deliberately has no API client.
 
 export type TranscriptStatus = 'idle' | 'connecting' | 'live' | 'unavailable'
-export interface TranscriptLine { id: string; speaker: 'detective' | 'suspect'; text: string }
+/** `final` is true once the provider has closed the turn; a detective line is only read for the notebook then. */
+export interface TranscriptLine { id: string; speaker: 'detective' | 'suspect'; text: string; final: boolean }
 type ToolkitItem = TranscriptHelperItem<Partial<UserTranscription | AgentTranscription>>
 
 export interface TranscriptSdks {
@@ -39,6 +40,20 @@ export function normalizeTranscriptSpacing(text: string): string {
   return text.replace(/([.!?])([A-Za-z])/g, '$1 $2').replace(/,([A-Za-z])/g, ', $1').replace(/\s{2,}/g, ' ').trim()
 }
 
+// TurnStatus.IN_PROGRESS in the toolkit; the enum is not imported so this file stays free of SDK code.
+const TURN_IN_PROGRESS = 0
+
+/**
+ * Whether the provider has closed this turn. In text mode the toolkit stamps every item as
+ * ended, so a player's turn is read from the transcription's own `final` flag when present.
+ */
+function isFinal(item: ToolkitItem): boolean {
+  const metadata = item.metadata
+  if (metadata && 'final' in metadata && typeof metadata.final === 'boolean') return metadata.final
+  if (metadata && 'turn_status' in metadata && typeof metadata.turn_status === 'number') return metadata.turn_status !== TURN_IN_PROGRESS
+  return item.status !== TURN_IN_PROGRESS
+}
+
 /**
  * Maps the toolkit's full history to display lines. The agent's RTM publisher ID is
  * not guaranteed to equal its RTC uid, so only the local sentinel is matched.
@@ -47,7 +62,7 @@ export function toTranscriptLines(items: readonly ToolkitItem[]): TranscriptLine
   return items.flatMap(item => {
     const text = normalizeTranscriptSpacing(typeof item.text === 'string' ? item.text : '')
     if (!text) return []
-    return [{ id: `${item.uid}-${item.turn_id}-${item.stream_id}`, speaker: item.uid === LOCAL_SPEAKER_UID ? 'detective' as const : 'suspect' as const, text }]
+    return [{ id: `${item.uid}-${item.turn_id}-${item.stream_id}`, speaker: item.uid === LOCAL_SPEAKER_UID ? 'detective' as const : 'suspect' as const, text, final: isFinal(item) }]
   })
 }
 

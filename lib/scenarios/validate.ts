@@ -1,5 +1,6 @@
 import { allEvidence, scenarioSchema, type Scenario } from './schema';
 import { fingerprint, similarity } from './fingerprint';
+import { speechNormalize } from './provider-disclosures';
 export function validateScenario(input:unknown, existing:Scenario[] = []) {
   const parsed=scenarioSchema.safeParse(input);
   if(!parsed.success) return {valid:false as const, errors:parsed.error.issues.map(i=>`${i.path.join('.')}: ${i.message}`)};
@@ -16,6 +17,24 @@ export function validateScenario(input:unknown, existing:Scenario[] = []) {
   check(facts.every(f=>s.knowledge.knows.includes(f.id)),'all disclosed facts must be known');
   for(const lie of s.knowledge.misleading) check(facts.find(f=>f.id===lie.factId)?.statement===lie.realFact,'misleading statement must cite real fact verbatim');
   for(const f of facts) refs(f.prerequisiteFactIds,fs,f.id);
+  // Disclosure only works if the suspect can say these lines and a lie can never say one by accident.
+  const lieIds=new Set(s.knowledge.misleading.map(lie=>lie.factId));
+  check(s.knowledge.admitsImmediately.every(id=>!lieIds.has(id)),'a fact cannot be admitted immediately and also hidden by a lie');
+  check(!s.truth.guilty||s.knowledge.misleading.length>0,'a guilty suspect needs a lie that a record can catch');
+  for(const f of facts){
+   check(f.disclosurePhrases.length>=3,`${f.id}: needs at least three spoken lines`);
+   for(const phrase of f.disclosurePhrases){
+    const count=phrase.trim().split(/\s+/).length;
+    check(count>=4&&count<=12,`${f.id}: spoken line must be 4–12 words: ${phrase}`);
+    check(/^[A-Za-z' ,.!-]+$/.test(phrase),`${f.id}: spoken line has unspeakable characters: ${phrase}`);
+   }
+  }
+  const lines=facts.flatMap(f=>f.disclosurePhrases.map(phrase=>({id:f.id,spoken:` ${speechNormalize(phrase)} `})));
+  for(const a of lines)for(const b of lines)check(a.id===b.id||!a.spoken.includes(b.spoken),`${a.id}: spoken line overlaps ${b.id}`);
+  const lieText=` ${speechNormalize([s.truth.realAlibi,...s.knowledge.misleading.map(lie=>lie.permittedDeception)].join(' '))} `;
+  check(lines.every(l=>!lieText.includes(l.spoken)),'an alibi or lie would disclose a fact');
+  const factWords=facts.map(f=>new Set(speechNormalize(f.statement).split(' ')));
+  factWords.forEach((a,i)=>factWords.slice(i+1).forEach(b=>check([...a].filter(w=>b.has(w)).length/new Set([...a,...b]).size<0.7,'near-duplicate fact statements')));
   for(const e of evidence) {refs(e.trigger.allFactIds,fs,e.id);check(e.availability==='public'?e.trigger.allFactIds.length===0:e.trigger.allFactIds.length>0,'evidence visibility/trigger mismatch');}
   check(s.publicEvidence.every(e=>e.availability==='public')&&s.discoverableEvidence.every(e=>e.availability==='discoverable'),'evidence in wrong visibility collection');
   for(const q of questions){refs(q.prerequisiteIds,known,q.id);refs(q.revealsFactIds,fs,q.id);}
@@ -67,4 +86,44 @@ export function validateScenario(input:unknown, existing:Scenario[] = []) {
 }
 export function assertValid(input:unknown):Scenario {
   const result=validateScenario(input);if(!result.valid||!('scenario' in result))throw new Error(result.errors.join('; '));return result.scenario;
+}
+const publicWords=(s:Scenario)=>new Set(speechNormalize([s.publicBriefing,s.title,s.setting,s.crime,s.suspect.role,s.suspect.attitude,s.suspect.relationship,s.suspect.speechStyle,
+ ...s.publicEvidence.flatMap(e=>[e.title,e.description,e.source]),...s.redHerrings.flatMap(e=>[e.title,e.description,e.source]),...s.suggestedQuestions.filter(q=>!q.prerequisiteIds.length).map(q=>q.text)].join(' ')).split(' ').filter(w=>w.length>=4));
+const shape=(items:Scenario['publicEvidence'])=>items.map(e=>`${e.category==='red_herring'?'testimony':e.category}/${e.kind}`).sort().join(',');
+/** Public signals that would let a returning player call a verdict without playing. */
+const caseShape=(s:Scenario):Record<string,string|number>=>{
+ const first=s.suspect.name.split(' ')[0].toLowerCase(), shown=[...s.publicEvidence,...s.redHerrings];
+ return {publicCount:shown.length,discoverableCount:s.discoverableEvidence.length,factCount:s.knowledge.facts.length,questionCount:s.suggestedQuestions.length,
+  publicShape:shape(shown),discoverableShape:shape(s.discoverableEvidence),publicSources:new Set(shown.map(e=>e.source)).size,
+  herringNamesSuspect:String(s.redHerrings.some(e=>e.description.toLowerCase().includes(first))),
+  exhibitsNameSuspect:s.publicEvidence.filter(e=>e.description.toLowerCase().includes(first)).length,
+  herringIsLastCard:String(shown.map(e=>e.id).sort().at(-1)===s.redHerrings[0].id),
+  alibiQuestion:String(s.suggestedQuestions.some(q=>q.category==='alibi'&&!q.prerequisiteIds.length))};
+};
+/** Checks across a published set, where a guilt tell shows up and a single case can't reveal one. */
+export function validateCaseSet(cases:Scenario[]) {
+ const errors:string[]=[], guilty=cases.filter(s=>s.truth.guilty), innocent=cases.filter(s=>!s.truth.guilty);
+ if(!guilty.length||!innocent.length)return errors;
+ if(!innocent.some(s=>s.knowledge.misleading.length===0))errors.push('at least one innocent suspect must tell no lie, or lying alone proves guilt');
+ const shapes=cases.map(s=>({guilty:s.truth.guilty,shape:caseShape(s)}));
+ for(const key of Object.keys(shapes[0].shape)){
+  const values=(side:boolean)=>new Set(shapes.filter(c=>c.guilty===side).map(c=>c.shape[key]));
+  const other=values(false);
+  if(![...values(true)].some(v=>other.has(v)))errors.push(`public shape splits on guilt: ${key}`);
+ }
+ // A value that appears on only one side is a tell even when the other side is mixed.
+ for(const key of ['publicCount','discoverableCount','factCount','questionCount','alibiQuestion'])for(const value of new Set(shapes.map(c=>c.shape[key]))){
+  const on=(side:boolean)=>shapes.filter(c=>c.guilty===side&&c.shape[key]===value).length;
+  if((on(true)>=2&&!on(false))||(on(false)>=2&&!on(true)))errors.push(`only one verdict has ${key}=${value}`);
+ }
+ const count=(side:Scenario[],word:string)=>side.filter(s=>publicWords(s).has(word)).length;
+ const gate=(side:Scenario[])=>Math.ceil(side.length*0.6);
+ for(const word of new Set(cases.flatMap(s=>[...publicWords(s)]))){
+  const g=count(guilty,word), i=count(innocent,word);
+  if((g>=gate(guilty)&&i===0)||(i>=gate(innocent)&&g===0))errors.push(`public word splits on guilt: ${word} (${g} guilty, ${i} innocent)`);
+ }
+ // A card that's usually the herring teaches players to skip it, whichever way the case falls.
+ const herrings=cases.flatMap(s=>s.redHerrings.map(e=>e.id)), most=Math.max(...herrings.map(id=>herrings.filter(h=>h===id).length));
+ if(most>Math.max(2,Math.ceil(cases.length*0.3)))errors.push('red herrings cluster on one card ID');
+ return errors;
 }

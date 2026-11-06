@@ -62,6 +62,8 @@
   --animate-flicker: flicker 6s linear infinite;
   --animate-reveal: reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-stamp: stamp 0.7s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+  --animate-reel-spin: reel-spin 2s linear infinite;
+  --animate-lead-flash: lead-flash 1.4s ease-out both;
 
   @keyframes pulse-ring {
     0% {
@@ -117,6 +119,25 @@
     100% {
       opacity: 1;
       transform: scale(1) rotate(-6deg);
+    }
+  }
+  /* A lead that has just been answered glows gold, then settles into the page. */
+  @keyframes lead-flash {
+    0% {
+      background-color: rgba(197, 164, 109, 0.42);
+      box-shadow: 0 0 24px rgba(197, 164, 109, 0.45);
+    }
+    100% {
+      background-color: rgba(197, 164, 109, 0.08);
+      box-shadow: 0 0 0 rgba(197, 164, 109, 0);
+    }
+  }
+  @keyframes reel-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 }
@@ -209,6 +230,24 @@
 
 @utility grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.85 0 0 0 0 0.75 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The suspect's avatar stream arrives bright and clean. These pull it into the room's palette:
+   the film dims and warms the video itself, the vignette darkens the edges towards obsidian while
+   leaving the face, which sits in the upper middle of the frame, clear. The SDK's player fills the
+   stage (object-fit: cover), so when a frame must be cropped top to bottom the head is kept by
+   anchoring the crop near the top rather than the centre. */
+@utility stage-film {
+  filter: brightness(0.66) saturate(0.74) sepia(0.22) contrast(1.08);
+  & video {
+    object-position: 50% 15%;
+  }
+}
+
+@utility stage-vignette {
+  background:
+    radial-gradient(ellipse 66% 62% at 50% 42%, transparent 0%, transparent 38%, rgba(16, 17, 19, 0.42) 70%, rgba(16, 17, 19, 0.9) 100%),
+    linear-gradient(180deg, rgba(16, 17, 19, 0.5), transparent 24%);
 }
 
 @utility text-balance {

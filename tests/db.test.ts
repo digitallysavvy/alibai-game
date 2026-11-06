@@ -76,7 +76,7 @@ test('local Supabase: atomic joins, idempotency, private RLS, discovery, scoring
  });
  await t.test('undiscovered pivotal evidence cannot be cited even with a guessed ID', async () => {
   await action(b.id, sidB, 'start'); await action(b.id, sidB, 'end');
-  const hidden = stateB.scenario.answerKey.pivotal[0].evidenceId;
+  const hidden = stateB.scenario.answerKey.pivotal.map((p: { evidenceId: string }) => p.evidenceId).find((id: string) => stateB.scenario.discoverableEvidence.some((e: { id: string }) => e.id === id));
   const result = await request('/rest/v1/rpc/session_action', { p_player: b.id, p_session: sidB, p_action: 'verdict', p_payload: { verdict: stateB.scenario.answerKey.verdict, evidenceIds: [hidden] } });
   assert.equal(result.ok, false); assert.match(result.data.message, /EVIDENCE_NOT_VISIBLE/);
  });
@@ -93,7 +93,7 @@ test('local Supabase: atomic joins, idempotency, private RLS, discovery, scoring
    await action(a.id, sidA, 'fact', { factId: fact.id, turnId: fact.id, source: 'test-provider' });
   }
   const after = await action(a.id, sidA, 'read'); assert.equal(after.factIds.length, stateA.scenario.knowledge.facts.length);
-  const notebook = await request(`/rest/v1/session_clues?session_id=eq.${sidA}`, undefined, a.token, 'GET'); assert.equal(notebook.data.length, 3); assert.equal(JSON.stringify(notebook.data).includes('interpretation'), false);
+  const notebook = await request(`/rest/v1/session_clues?session_id=eq.${sidA}`, undefined, a.token, 'GET'); assert.equal(notebook.data.length, stateA.scenario.discoverableEvidence.length); assert.equal(JSON.stringify(notebook.data).includes('interpretation'), false);
  });
  await t.test('verdict is one-time and SQL scoring matches the deterministic TypeScript rubric', async () => {
   await action(a.id, sidA, 'end');
@@ -131,4 +131,10 @@ test('local Supabase: atomic joins, idempotency, private RLS, discovery, scoring
   }
   const exhausted = await request('/rest/v1/rpc/assign_scenario', { p_player: a.id, p_key: randomUUID() }); assert.equal(exhausted.ok, false); assert.match(exhausted.data.message, /POOL_EXHAUSTED/);
  });
+});
+
+test('local Supabase: spoken-line normalization matches the server', { skip: !enabled }, async () => {
+ const { speechNormalize } = await import('../lib/scenarios/provider-disclosures');
+ const lines = fixtures.flatMap(s => s.knowledge.facts.flatMap(f => f.disclosurePhrases));
+ for (const line of [...lines, "I didn't, can't, won't, cannot; Sela’s key, it's 7:10 PM…"]) assert.equal(await rpc('speech_normalize', { p_text: line }), speechNormalize(line));
 });

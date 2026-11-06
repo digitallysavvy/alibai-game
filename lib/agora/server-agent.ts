@@ -76,8 +76,8 @@ export async function startSuspectAgent(input: { sessionId: string; instructions
   const avatarToken = RtcTokenBuilder.buildTokenWithUid(appId, appCertificate, channel, AVATAR_UID,
     RtcRole.PUBLISHER, TOKEN_SECONDS, TOKEN_SECONDS);
   const agent = new Agent({
-    client: client(), instructions, greeting: 'I am ready for your questions.',
-    failureMessage: 'Could you repeat that question?', maxHistory: 30,
+    client: client(), instructions, greeting: "I'm ready when you are.",
+    failureMessage: "Sorry, what was that?", maxHistory: 30,
     turnDetection: { language: 'en-US', config: { speech_threshold: 0.5,
       start_of_speech: { mode: 'vad', vad_config: { interrupt_duration_ms: 160, prefix_padding_ms: 300 } },
       end_of_speech: { mode: 'vad', vad_config: { silence_duration_ms: 480 } } } },
@@ -87,7 +87,7 @@ export async function startSuspectAgent(input: { sessionId: string; instructions
     .withStt(new AresSTT())
     .withLlm(new OpenAI({ model: 'gpt-4o-mini',
       systemMessages: [{ role: 'system', content: instructions }], maxHistory: 30,
-      params: { max_tokens: 250, temperature: 0.2 }, greetingMessage: 'I am ready for your questions.' }))
+      params: { max_tokens: 250, temperature: 0.2 }, greetingMessage: "I'm ready when you are." }))
     .withTts(new AvatarMiniMaxTTS({ model: 'speech_2_6_turbo',
       voiceId }))
     .withAvatar(new AnamAvatar({ apiKey: requireEnv('ANAM_API_KEY'), avatarId,

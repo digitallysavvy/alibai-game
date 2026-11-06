@@ -1,0 +1,83 @@
+import { ask, build, disc, fact, grant, pub, span } from './helpers';
+
+// 6. Guilty, easy. Bren says he only looked in the cabinet; the dock camera and the felt batch say otherwise.
+export default build(6, {
+  title: 'The Silent Ferry Bell', genre: 'cozy procedural', setting: 'Mallowreach canal ferry depot',
+  crime: 'The Kestrel\'s departure bell was wedged silent before its half past seven test, and the crew forfeited the first slot of the season to the Heron.',
+  publicBriefing: 'Two crews share the Mallowreach depot and the Kestrel had Monday\'s first slot, the first of the season. The departure bell works like a doorbell: the deckhand presses the test button, a coil in the cabinet throws a steel striker at the bell, and a green lamp on the quay lights whenever the coil gets power. At the half past seven test the lamp lit and nobody on the quay heard the bell, so under depot rules the slot went to the Heron and the Kestrel sat tied up for an hour. When the cabinet was opened afterwards the striker travelled a finger\'s width and met something soft. Bren Ash writes the maintenance rota for both boats, signed the Kestrel\'s bell cabinet off at five past seven, and crews on the Heron, where his kit bag was handed up ten minutes later. The Kestrel\'s deckhand heard the cabinet door bang at twenty past seven, with Bren already across the water, and turned round to an empty quay. Bren\'s signature calls the striker sound at five past seven. Was it?',
+  suspect: { id: 'suspect', name: 'Bren Ash', ageRange: 'early forties', role: 'maintenance scheduler', avatarDescription: 'An oilskin jacket and a depot beanie pulled low over a face that has spent twenty winters on the canal.',
+    speechStyle: 'Boat words and long answers that set off somewhere and come back by a different route.',
+    attitude: 'Hearty and expansive, laughs before the question is finished and calls the detective "skipper".',
+    relationship: 'Writes the rota for both crews and crews on the Heron himself; the Heron\'s skipper carried him through the winter with a loan, and the whole depot knows it.' },
+  truth: { guilty: true, culpritId: 'suspect',
+    actualEvent: 'During the five past seven cabinet check Bren lifted the Kestrel\'s striker arm out of its cradle, fitted a grey felt pad from his maintenance kit beneath it, signed the sheet "all sound", left the latch on its first notch with the tag wire unthreaded, and carried his kit bag over to the Heron.',
+    motive: 'He had promised the Heron crew the first slot of the season on Sunday night, with its bonus, and the only way to deliver it was for the Kestrel to fail its test.',
+    opportunity: 'The scheduled cabinet sign-off put him alone at the open cabinet twenty-five minutes before the test.',
+    means: 'A felt pad under the striker lets the coil fire and the lamp light while the bell stays silent.',
+    realAlibi: 'I was at the Kestrel\'s bell cabinet about five past seven doing the sign-off, then over to the Heron with my kit bag.',
+    explanation: 'The lamp sits on the coil circuit, so a padded striker passes the electrical test and fails the bell. The dock camera has Bren at the open cabinet at four minutes past seven with the striker arm in his hand, against his claim that he only looked. The felt pad carries the batch stamp of the kit issued to the scheduler in January, and the Heron crew\'s Sunday message has him promising them the slot. The tag wire was never threaded through the latch, as the camera shows at nine minutes past, so it is unbroken and the door could blow open; the bang at twenty past was the wind, and the camera shows the door swinging with nobody near it. The Heron\'s skipper had asked for the slot in writing and was aboard with the gangway up from ten to seven.',
+    timeline: [
+      span('time-1', 'suspect', '2026-03-30', '06:45', '07:00', 'dock office', 'Bren collects the inspection sheets and his kit bag.', false),
+      span('time-2', 'suspect', '2026-03-30', '07:05', '07:10', 'Kestrel bell cabinet', 'Bren opens the cabinet, lifts the striker arm, fits a grey felt pad beneath it, signs the sheet and leaves the latch on its first notch with the tag wire hanging.', true),
+      span('time-3', 'suspect', '2026-03-30', '07:12', '07:20', 'Heron berth', 'Bren hands his kit bag up to the Heron\'s deckhand.', false),
+      span('time-4', 'suspect', '2026-03-30', '07:30', '07:35', 'dock office', 'Bren watches the Kestrel\'s silent test from the office window.', false),
+      span('time-5', 'suspect', '2026-03-30', '08:15', '08:16', 'interview room', 'Bren sits down for the interview.', false),
+    ],
+    access: [grant('suspect', '2026-03-30', 'Kestrel bell cabinet', '06:00', '09:00')] },
+  knowledge: {
+    facts: [
+      fact('fact-1', 'The indicator lamp lights off the coil, so a blocked striker still leaves the lamp on.',
+        ['The lamp will light with the striker blocked.', 'That lamp only tells you the coil fired.', 'A jammed striker still lights the lamp.', 'The lamp\'s on the coil, the bell\'s on the arm.']),
+      fact('fact-2', 'I lifted the striker arm out of its cradle during the five past seven check.',
+        ['I did have the striker arm out.', 'I lifted the striker during the check.', 'The arm was out of the cradle while I looked.', 'I had the striker in my hand at five past.']),
+      fact('fact-3', 'My maintenance kit carries grey felt pads from the January issue.',
+        ['My kit carries grey felt pads.', 'Those grey pads came with my kit in January.', 'There is grey felt in every scheduler kit.', 'I keep felt pads in the kit for the latches.'], ['fact-2']),
+      fact('fact-4', 'I promised the Heron crew the first slot of the season on Sunday night.',
+        ['I promised the Heron lads the slot.', 'I promised my crew the first slot.', 'The Heron crew had my word on the slot.', 'I\'d given the Heron the first slot in my head.']),
+      fact('fact-5', 'The first slot of the season carries the crew bonus, about a week\'s wages a head.',
+        ['First slot comes with the season bonus.', 'The first boat out gets the bonus money.', 'There\'s a week\'s wages riding on that slot.', 'The slot\'s worth a bonus to the crew.']),
+    ],
+    knows: ['fact-1', 'fact-2', 'fact-3', 'fact-4', 'fact-5'], doesNotKnow: ['Whether the dock camera was recording.', 'What either deckhand has said.'],
+    admitsImmediately: ['fact-1'], revealsWhenQuestioned: ['fact-2', 'fact-3', 'fact-4', 'fact-5'],
+    misleading: [
+      { factId: 'fact-2', realFact: 'I lifted the striker arm out of its cradle during the five past seven check.', permittedDeception: 'I may say I only opened the cabinet door for a look and never laid a hand on the striker, until the dock camera is put to me.' },
+    ] },
+  publicEvidence: [
+    pub('exhibit-2', 'Departure test result', 'record', 'Dock test log', 'observation', 'Dock test log: 07:30 test on the Kestrel, indicator lamp lit, bell silent, slot forfeited to the Heron under depot rules; the scheduler\'s sign-off on a cabinet that failed inside the hour referred to the depot manager for review, as the rota rules require.', 'The circuit worked and the bell did not. Who gained is on the same line, and the man who signed the cabinet off is on the line below, with his rota job in question.'),
+    pub('exhibit-3', 'Bell cabinet inspection sheet', 'record', 'Dock office', 'observation', 'Dock office: the Kestrel bell cabinet inspection sheet is signed B. Ash, five past seven, "all sound, latched and tagged".', 'Bren was in that cabinet twenty-five minutes before the test and signed it good, tag and all.'),
+    pub('exhibit-4', 'Cabinet latch and striker travel', 'physical', 'Cabinet notes', 'observation', 'Cabinet notes: the latch is a two-notch catch with a tamper tag wire that threads through it once it is home on the second notch; the latch was found resting on its first notch with the tag wire hanging loose and unbroken; a wire draws back out of a first-notch latch without breaking; the striker travels a finger\'s width and meets something soft.', 'Nobody forced the cabinet. Either it was never tagged, or someone after him eased the latch back a notch and slid the wire out.'),
+    pub('exhibit-5', 'Heron deckhand on the kit bag', 'testimony', 'Deckhand\'s statement', 'character_claim', 'Deckhand\'s statement: the Heron\'s deckhand took Bren\'s kit bag over the rail at about a quarter past seven and stowed it in the wheelhouse locker.', 'His kit went to the Heron straight after the cabinet. What was in it is the question.'),
+  ],
+  discoverableEvidence: [
+    disc('record-1', 'Bell circuit drawing', 'record', 'Circuit drawing', 'observation', 'Circuit drawing: the indicator lamp sits on the coil; the striker arm is mechanical and has no sensor of its own.', 'A lit lamp proves the coil fired and nothing about the arm.', ['fact-1']),
+    disc('record-2', 'Dock camera stills, seven to half past', 'record', 'Dock camera', 'observation', 'Dock camera: 07:06, Bren at the open Kestrel cabinet with the striker arm lifted in his left hand; 07:09, Bren pushing the door to with the tag wire hanging outside the latch; 07:20, the cabinet door swinging open in the wind with nobody on the quay, and nobody at it between.', 'Against his claim of looking only. The arm was out, in his hand, the tag never went through, and the later bang was the wind on an untagged door.', ['fact-2']),
+    disc('record-3', 'Felt pad from the striker', 'physical', 'Cabinet notes', 'observation', 'Cabinet notes: the pad under the striker is grey felt stamped with kit batch MK-7, the batch issued to the scheduler\'s maintenance kit in January; the Kestrel\'s own kit carries batch MK-4.', 'The thing that silenced the bell came from his kit, and from no other kit on the quay.', ['fact-3']),
+    disc('record-4', 'Heron crew message from Sunday', 'testimony', 'Crew group message', 'character_claim', 'Crew group message, Sunday 21:48, from Bren: "first slot\'s ours tomorrow, trust me".', 'He promised a result he could only deliver by stopping the Kestrel.', ['fact-4']),
+    disc('record-5', 'Heron skipper\'s slot request', 'record', 'Dock office', 'observation', 'Dock office: a note from the Heron\'s skipper on Friday asking the harbourmaster to swap the first slot to the Heron, marked refused and initialled; the dock camera has the skipper aboard the Heron from 06:50 to the test with the gangway up, and nobody but Bren at the Kestrel cabinet between seven and half past.', 'The skipper wanted the slot badly enough to ask in writing, and could not have reached the cabinet. One pair of hands was in it.', ['fact-5']),
+  ],
+  redHerrings: [
+    pub('exhibit-1', 'Kestrel deckhand on the door', 'red_herring', 'Deckhand\'s statement', 'character_claim', 'Deckhand\'s statement: the Kestrel\'s deckhand was coiling lines on the foredeck at about twenty past seven when the bell cabinet door banged on the quay behind him; he turned round to an empty quay, with Bren already over at the Heron\'s berth.', 'The dock camera has the door swinging in the wind on the first notch of the latch, with the quay empty.'),
+  ],
+  suggestedQuestions: [
+    ask('question-1', 'How can the lamp light while the bell stays silent?', 'evidence', 1, [], ['fact-1'], 'safe'),
+    ask('question-2', 'Walk me through the cabinet check at five past seven.', 'alibi', 2, [], ['fact-2'], 'safe'),
+    ask('question-3', 'What\'s riding on the first slot?', 'motive', 3, [], ['fact-5'], 'safe'),
+    ask('question-4', 'What did you promise the Heron lads for this season?', 'motive', 4, [], ['fact-4'], 'safe'),
+    ask('question-5', 'Why did your kit bag go onto the Heron straight after the check?', 'timeline', 5, [], ['fact-3'], 'safe'),
+    ask('question-6', 'What went back into the cradle with the striker?', 'follow_up', 1, ['fact-2'], ['fact-3'], 'contextual'),
+  ],
+  answerKey: { verdict: 'guilty',
+    pivotal: [
+      { evidenceId: 'exhibit-3', why: 'He was in the cabinet, alone and by right, twenty-five minutes before the silent test, and signed it tagged when it was not.' },
+      { evidenceId: 'record-2', why: 'The camera has the striker in his hand, against his claim that he only looked, and shows the later bang was the wind.' },
+      { evidenceId: 'record-3', why: 'The pad that silenced the bell carries his kit\'s batch stamp and no other kit\'s.' },
+      { evidenceId: 'record-4', why: 'He promised his crew the slot the night before, a result only a failed test could give.' },
+    ],
+    misleading: [{ evidenceId: 'exhibit-1', why: 'The door bang was the wind on an unlatched, untagged door; the camera shows the quay empty.' }] },
+  solvabilityPath: [
+    { questionId: 'question-1', alternativePhrasings: ['Why would the light come on and the bell stay quiet?', 'Was it a power fault?'], expectedFactIds: ['fact-1'], why: 'The lamp is on the coil; the fault is mechanical, in the striker.' },
+    { questionId: 'question-2', alternativePhrasings: ['Did you touch the striker during the check?', 'What did the inspection involve?'], expectedFactIds: ['fact-2'], why: 'He claims a look only, then concedes the striker was out when the camera is put to him.' },
+    { questionId: 'question-6', alternativePhrasings: ['Where did that felt come from?', 'Is that pad from your kit?'], expectedFactIds: ['fact-3'], why: 'His kit carries the grey felt, and the pad\'s batch stamp is his kit\'s.' },
+    { questionId: 'question-4', alternativePhrasings: ['Did you promise the Heron crew anything?', 'Who wanted the first slot?'], expectedFactIds: ['fact-4'], why: 'He had promised his crew the slot the night before.' },
+  ],
+});

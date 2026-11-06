@@ -1,0 +1,83 @@
+import { ask, build, disc, fact, grant, pub, span } from './helpers';
+
+// 3. Innocent, easy. Tavi's voice was in the office and her cue sheet has a hole; the treasurer took the envelope.
+export default build(3, {
+  title: 'The Wednesday Count', genre: 'cozy procedural', setting: 'Wrenfold community theatre',
+  crime: 'The sealed envelope of the weekend\'s ticket takings was gone from the stage office cash box by a quarter to nine, during the Wednesday rehearsal.',
+  publicBriefing: 'Wrenfold Players count the weekend\'s takings on the Wednesday after, because that is the rehearsal night when the treasurer and the director are both in the building to sign the count. Saturday\'s takings were counted and sealed at eight and locked in the stage office cash box. At a quarter to nine the envelope was gone. The drawer had been shut again and the lock showed no marks. The stage manager went down the corridor for the director\'s notes at ten past eight and heard Tavi Reed\'s voice coming from inside the office. Tavi was on sound, which means the booth upstairs, and her signed cue sheet for the second act has three cues ticked in a different pen at about that moment. A props crate, the costume hamper and the bar float tin went out through the loading bay between eight and nine, and she deleted a file from the booth computer the moment rehearsal ended. Ask her what you need to, then say whether she took the envelope.',
+  suspect: { id: 'suspect', name: 'Tavi Reed', ageRange: 'nineteen', role: 'sound operator', avatarDescription: 'Oversized black crew hoodie with the sleeves shoved up, headphones round her neck.',
+    speechStyle: 'Fast run-on sentences with "like" and "honestly" scattered through them, swinging between indignant and sorry.',
+    attitude: 'Talkative, quick to apologise, talks straight through any pause.',
+    relationship: 'Volunteer on sound for two seasons; has twice asked the committee for a paid technician\'s post and twice been told the takings could not fund it.' },
+  truth: { guilty: false, culpritId: 'treasurer',
+    actualEvent: 'The treasurer took the sealed envelope from the cash box at about a quarter past eight while fetching the costume hamper from the office corridor, tucked it under the hamper\'s lid strap, and wheeled the hamper out through the loading bay to a car.',
+    motive: 'The treasurer needed cash to cover a shortfall in the club\'s separate bar account before the annual audit.',
+    opportunity: 'The treasurer held an office key and had a reason to be in the corridor with the hamper during the second act run.',
+    means: 'A legitimate office key and the costume hamper, signed out for dry cleaning, carried the envelope out unseen.',
+    realAlibi: 'I was in the sound booth running the second act cues from just after eight until twenty to nine, and I sang a bit into the talkback while they reset the stage.',
+    explanation: 'The office monitor is fed from the booth talkback, so Tavi\'s voice in the office was her voice in the booth. The cue computer logged eighteen presses from the desk through the window, including the three ticked in black while her red pen was on the floor under the rack. The loading bay camera shows the treasurer wheeling the hamper out with a white envelope under the lid strap, while the stalls board still had the treasurer marked in. The booth stairs come down beside the stage manager\'s desk, and she saw nobody come down them before or after her minute in the corridor. The deleted file was her singing the lead\'s part, recovered from the recycle bin.',
+    timeline: [
+      span('time-1', 'suspect', '2026-04-22', '19:30', '20:00', 'sound booth', 'Tavi sets up the desk and checks levels for the second act run.', false),
+      span('time-2', 'suspect', '2026-04-22', '20:00', '20:40', 'sound booth', 'Tavi runs the second act cues, drops her red pen under the rack at cue nine and finds it again at cue twelve, and sings the lead\'s part into the talkback during the reset.', true),
+      span('time-3', 'treasurer', '2026-04-22', '20:12', '20:18', 'stage office', 'The treasurer takes the sealed envelope from the cash box and tucks it under the hamper\'s lid strap.', true),
+      span('time-4', 'treasurer', '2026-04-22', '20:24', '20:28', 'loading bay', 'The treasurer wheels the hamper out to the car park.', true),
+      span('time-5', 'suspect', '2026-04-22', '21:45', '21:46', 'interview room', 'Tavi sits down for the interview.', false),
+    ],
+    access: [grant('suspect', '2026-04-22', 'sound booth', '19:00', '22:00'), grant('treasurer', '2026-04-22', 'stage office', '18:00', '22:00'), grant('treasurer', '2026-04-22', 'loading bay', '18:00', '22:00')] },
+  knowledge: {
+    facts: [
+      fact('fact-1', 'The office monitor speaker is wired to the booth talkback mic, and the switch was left live.',
+        ['The office speaker\'s on the booth talkback.', 'That monitor picks up my talkback mic.', 'The talkback switch was left live all night.', 'Whatever I speak into the booth mic comes out in the office.']),
+      fact('fact-2', 'I was in the booth pressing cues for the second act run from just after eight until twenty to nine, and my red pen rolled under the rack at cue nine until I found it at twelve.',
+        ['I was in the booth running cues the whole act.', 'I pressed every cue in that act from the booth.', 'The red pen rolled under the rack at cue nine.', 'I was at the desk from eight till twenty to nine.']),
+      fact('fact-3', 'The booth stairs come down beside the stage manager\'s desk, and I would have had to pass her desk to get anywhere near the office.',
+        ['The booth stairs come down by the stage manager.', 'Anyone leaving the booth passes her desk.', 'I would have walked right past her desk.', 'The stage manager sits at the foot of the booth stairs.'], ['fact-2']),
+      fact('fact-4', 'I was singing the lead\'s part into the talkback while the stage was being reset.',
+        ['I was singing the lead\'s part.', 'I\'d been learning the lead\'s songs.', 'That file was me singing, honestly.', 'I want to audition for the lead.']),
+      fact('fact-5', 'The treasurer and the director count the takings and hold the only two office keys; I have a booth key.',
+        ['The treasurer and the director hold the office keys.', 'Only two people have keys to that office.', 'The takings get counted by the treasurer and the director.', 'I\'ve got a booth key and that\'s it.']),
+    ],
+    knows: ['fact-1', 'fact-2', 'fact-3', 'fact-4', 'fact-5'], doesNotKnow: ['Who took the hamper out, or what was under its lid.', 'Anything about the club\'s accounts.', 'Who signed the loading bay book.'],
+    admitsImmediately: ['fact-1'], revealsWhenQuestioned: ['fact-2', 'fact-3', 'fact-4', 'fact-5'],
+    misleading: [
+      { factId: 'fact-4', realFact: 'I was singing the lead\'s part into the talkback while the stage was being reset.', permittedDeception: 'I may say the file I deleted was a test tone and that the voice in the office was me calling a cue, until the detective presses twice.' },
+    ] },
+  publicEvidence: [
+    pub('exhibit-1', 'Stage office drawer and lock', 'physical', 'Scene inspection', 'observation', 'Scene inspection: the cash box drawer in the stage office is shut and its lock carries no marks; the envelope\'s slot inside is empty.', 'Whoever opened it had a key or found it open. Nothing was forced.'),
+    pub('exhibit-2', 'Stage manager on the voice in the office', 'testimony', 'Stage manager\'s statement', 'character_claim', 'Stage manager\'s statement: at about ten past eight, collecting the director\'s notes from the corridor, the stage manager heard Tavi\'s voice coming from inside the office.', 'Her voice was in the office. Where the rest of her was is a different question.'),
+    pub('exhibit-4', 'Tavi\'s cue sheet for the second act', 'record', 'Cue sheet', 'observation', 'Cue sheet, signed T. Reed: cues one to eighteen ticked; cues nine, ten and eleven, which fall around ten past eight, are ticked in black where the rest are in red.', 'Three cues in a different pen at the time that matters. Either she changed pens, or someone else ticked them.'),
+    pub('exhibit-5', 'Loading bay book, eight to nine', 'record', 'Loading bay book', 'observation', 'Loading bay book: props crate out at ten past eight, costume hamper at twenty-five past, bar float tin at twenty to nine; all three sets of initials smudged by rain. The stalls sign-in board by the auditorium door has the treasurer marked in from five past eight to nine for the act run.', 'Three things left the building inside the window, and the book cannot say with whom. The board has the treasurer in the stalls throughout, if the board is right.'),
+  ],
+  discoverableEvidence: [
+    disc('record-1', 'Director on the talkback feed', 'testimony', 'Director\'s statement', 'character_claim', 'Statement of Hollis Grey, director: he had the office monitor fed from the booth talkback last season so he could hear the desk during notes, and nobody switches it off.', 'A voice from that speaker is a voice from the booth.', ['fact-1']),
+    disc('record-2', 'Cue computer log', 'record', 'Cue computer log', 'observation', 'Cue computer log: eighteen GO presses from the booth desk between 20:02 and 20:40; cues nine to eleven at 20:08, 20:11 and 20:13; a red pen found under the equipment rack beside the desk, its cap still on the desk.', 'Someone was pressing cues at the desk through the window, including the three ticked in black, and the red pen was on the floor where she says it went.', ['fact-2']),
+    disc('record-3', 'Loading bay camera still', 'record', 'Loading bay camera', 'observation', 'Loading bay camera, 20:26: the treasurer wheels the costume hamper out, a white envelope tucked under the lid strap; the stalls board by the auditorium door still shows the treasurer marked in.', 'The envelope left in the hamper, in the treasurer\'s hands, while the board said stalls.', ['fact-5']),
+    disc('record-4', 'Recovered file from the booth computer', 'record', 'Booth computer', 'observation', 'Booth computer recycle bin: "act2_lead_take3", nine minutes of Tavi singing the lead\'s second act number over the talkback, saved 20:22.', 'The deleted file is a singing take, timed inside the window, from the booth.', ['fact-4']),
+  ],
+  redHerrings: [
+    pub('exhibit-3', 'Director on the deleted file', 'red_herring', 'Director\'s statement', 'character_claim', 'Statement of Hollis Grey, director: as soon as rehearsal ended, Tavi deleted a file from the booth computer and went red when he asked about it.', 'The file was her singing the lead\'s part through the talkback. It is in the recycle bin.'),
+  ],
+  suggestedQuestions: [
+    ask('question-1', 'How was your voice in the office at ten past eight when you were upstairs?', 'evidence', 1, [], ['fact-1'], 'safe'),
+    ask('question-2', 'Walk me through the second act run from eight o\'clock.', 'alibi', 2, [], ['fact-2'], 'safe'),
+    ask('question-3', 'Who counts the takings, and who\'s got a key to that office?', 'access', 3, [], ['fact-5'], 'safe'),
+    ask('question-4', 'Why\'d you delete a file the second rehearsal ended?', 'evidence', 4, [], ['fact-4'], 'safe'),
+    ask('question-5', 'Why do cues nine to eleven switch to black ink?', 'timeline', 5, [], ['fact-2'], 'safe'),
+    ask('question-6', 'How would you get from the booth to the office?', 'follow_up', 1, ['fact-2'], ['fact-3'], 'contextual'),
+    ask('question-7', 'What were you saying into the talkback while the speaker was live?', 'follow_up', 2, ['record-1'], ['fact-4'], 'contextual'),
+  ],
+  answerKey: { verdict: 'innocent',
+    pivotal: [
+      { evidenceId: 'exhibit-2', why: 'Her voice was in the office, and the talkback record shows where it came from.' },
+      { evidenceId: 'record-1', why: 'The voice in the office came from the booth, which is where Tavi says she was.' },
+      { evidenceId: 'record-2', why: 'Cue presses from the desk every couple of minutes keep her in the booth, black-pen cues included.' },
+      { evidenceId: 'record-3', why: 'The camera has the envelope leaving in the hamper with the treasurer.' },
+    ],
+    misleading: [{ evidenceId: 'exhibit-3', why: 'The deleted file was her singing, recovered intact; it has nothing to do with the cash box.' }] },
+  solvabilityPath: [
+    { questionId: 'question-1', alternativePhrasings: ['Why could people hear your voice in the office?', 'Is there a speaker in the office?'], expectedFactIds: ['fact-1'], why: 'The office monitor carries the booth talkback.' },
+    { questionId: 'question-2', alternativePhrasings: ['Where were you at twenty past eight?', 'Can anything prove you were in the booth?'], expectedFactIds: ['fact-2'], why: 'She was pressing cues at the desk through the window.' },
+    { questionId: 'question-6', alternativePhrasings: ['Is there another way down from the booth?', 'Who would have seen you leave the booth?'], expectedFactIds: ['fact-3'], why: 'The booth stairs come down past the stage manager\'s desk, so a trip to the office would have been seen.' },
+    { questionId: 'question-3', alternativePhrasings: ['Who has an office key?', 'Who sealed the envelope?'], expectedFactIds: ['fact-5'], why: 'Two people hold office keys, and the camera shows which of them carried the envelope out.' },
+  ],
+});

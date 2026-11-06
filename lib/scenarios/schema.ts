@@ -52,4 +52,9 @@ export type Question = z.infer<typeof questionSchema>;
 export type Difficulty = z.infer<typeof difficultySchema>;
 export const allEvidence = (s: Scenario) => [...s.publicEvidence, ...s.discoverableEvidence, ...s.redHerrings];
 export const publicEvidenceDTO = (e: Evidence) => ({ id:e.id, title:e.title, description:e.description, category:e.category === 'red_herring' ? 'testimony' as const : e.category, source:e.source, kind:e.kind, availability:e.availability });
-export const questionDTO = (q: Question) => ({ id:q.id, text:q.text, category:q.category });
+// speechStyle and attitude stay private: they are actor direction and can hint at guilt.
+export const publicSuspectDTO = (s: Scenario['suspect']) => ({ id:s.id, name:s.name, role:s.role, relationship:s.relationship, avatarDescription:s.avatarDescription });
+// Category stays private: which kinds of question a case carries can hint at its verdict.
+export const questionDTO = (q: Question) => ({ id:q.id, text:q.text });
+// Only for a fact the server has already recorded: the statement is what the suspect gave up aloud.
+export const factDTO = (f: Scenario['knowledge']['facts'][number]) => ({ id:f.id, statement:f.statement });
