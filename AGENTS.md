@@ -91,7 +91,7 @@ pnpm data:setup                                      # applies migrations and ca
 
 ```text
 app/                      pages and API routes
-  api/sessions/[id]/[action]/   read, notebook, questions (unused by the UI), agent, agent-ready,
+  api/sessions/[id]/[action]/   read, notebook, questions (unused by the UI), connect, ready,
                                 sync-facts, end, verdict, start (dev only)
   api/auth, api/auth/google, auth/callback
 components/game/          game UI; production-session.tsx is the main screen
@@ -114,8 +114,8 @@ Session states: `created → preparing → active → ended → scored`, or `aba
 
 1. `POST /api/sessions` runs `assign_scenario`. That picks an unplayed case and freezes one avatar and one voice on the session.
 2. The player reads the briefing and enters the room, which connects automatically.
-3. `POST .../agent` claims the run and starts the agent with server-built instructions. It returns RTC credentials.
-4. The browser publishes the mic. Once suspect audio **and** video decode, the suspect shows and `POST .../agent-ready` starts the clock. A start acknowledgement alone never starts it.
+3. `GET .../read` loads the room, then `POST .../connect` runs if the session can connect. `session_connect` checks the owner, reads the session and claims the run in one call. The route then awaits Agora's start, commits the agent ID and returns the view and RTC credentials. It also renews tokens and reconnects, and only the call that wins the claim starts an agent.
+4. The browser joins and publishes the mic once `connect` returns. Once suspect audio **and** video decode, the suspect shows and `POST .../ready` starts the clock through `session_ready` and returns the view. A start acknowledgement alone never starts it.
 5. Every 5 seconds, `sync-facts` reads provider history on the server and records verified facts, which unlock evidence and follow-up leads. `leads()` marks a lead answered once a fact in its `revealsFactIds` is recorded; a recorded fact no lead on the page lists comes back as an admission.
 6. `POST .../end` runs a final sync, ends the session, and stops the agent.
 7. `POST .../verdict` accepts one verdict. SQL calculates the score.
@@ -175,7 +175,8 @@ No one has confirmed these working end to end: a live Agora and Anam session, a 
 - Ending the interview at once earns most of the time bonus.
 - Players hit `POOL_EXHAUSTED` after all 8 cases. Allowing replays would invite leaderboard farming.
 - Agent `idleTimeout` is 30 seconds, so reconnecting after a long drop may fail.
-- Calling `agent` on a session started through the dev-only `/start` path resets its clock.
+- Calling `connect` on a session started through the dev-only `/start` path resets its clock.
+- Access tokens are verified locally, so a token revoked by logout or a ban works until it expires (one hour). Refresh tokens are still checked by Supabase.
 - There's no recording notice yet, detective turns aren't stored, and `/admin` is a placeholder.
 - The landing page shows a hard-coded case number.
 - `docs/setup.md` and `docs/verification.md` predate Google sign-in and the latest migrations.

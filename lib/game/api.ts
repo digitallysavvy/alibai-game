@@ -41,6 +41,7 @@ export interface SessionView {
   }
 }
 const messages: Record<string, string> = {
+  AUTH_UNAVAILABLE: 'Sign-in checks are briefly unavailable. Please try again in a moment.',
   LOGIN_REQUIRED: 'Please sign in at the rules page to continue.',
   INVALID_LOGIN: 'Sign in failed. Check your email, password and email confirmation.',
   SIGNUP_FAILED: 'Could not create your account. Check your details or try signing in.',

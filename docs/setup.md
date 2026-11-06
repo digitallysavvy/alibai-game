@@ -60,8 +60,8 @@ All session operations require the logged-in account. Auth is maintained in Http
 | `GET /api/sessions/:id/read` | Session state/timestamps, public briefing, current notebook, eligible suggestions; results only after scoring. |
 | `GET /api/sessions/:id/notebook` | Public evidence and genuinely discovered evidence. |
 | `GET /api/sessions/:id/questions?offset=0` | Up to three eligible prompts and `more` offset, or `null`. |
-| `POST /api/sessions/:id/agent` | Start or recover the session's reserved voice agent; return safe connection credentials. |
-| `POST /api/sessions/:id/agent-ready` | Called after client media readiness; checks the associated agent before starting the clock. |
+| `POST /api/sessions/:id/connect` | Called once the room's view shows a session that can connect. Claims and starts the session's voice agent, then returns the view and safe connection credentials. Also renews tokens and reconnects. |
+| `POST /api/sessions/:id/ready` | Called after client media readiness; checks the associated agent, starts the clock and returns the view. |
 | `POST /api/sessions/:id/start` | Manual development start, enabled only by `ENABLE_MANUAL_INTERVIEW`. |
 | `POST /api/sessions/:id/end` | Freeze an active clock, or abandon a cancelled startup, then request agent cleanup. |
 | `POST /api/sessions/:id/sync-facts` | Fetch trusted provider history on the server and verify canonical disclosures; accepts no client transcript or fact IDs. |
@@ -87,7 +87,7 @@ Assignment never invokes a model. A per-player transaction lock serializes retri
 
 ## Trusted voice integration
 
-`lib/server/game.ts` exposes `buildSuspectAgentContext(sessionId)`, `recordTranscriptTurn(sessionId, turn)` and `recordFactRevealed(sessionId, factId, turnId, evidenceSource)` for trusted server integrations only. There is no browser endpoint for reading the context or awarding discoveries.
+`lib/server/game.ts` exposes `buildSuspectAgentContext(scenario)`, `recordTranscriptTurn(sessionId, turn)` and `recordFactRevealed(sessionId, factId, turnId, evidenceSource)` for trusted server integrations only. There is no browser endpoint for reading the context or awarding discoveries.
 
 A provider bridge must authenticate its events, correlate the stored session/agent, store an actually delivered suspect transcript turn, then request the corresponding fact revelation. The MVP deliberately requires the complete canonical disclosure sentence, not an arbitrary substring or model assertion. Facts outside the active time window, detective utterances, unknown references and duplicate scoring claims are rejected. This constrains the agent's disclosure output, not the wording a player must use. The browser triggers a server-side provider-history sync every five seconds while connected and before ending. That adapter reads managed assistant history from the persisted agent and accepts only canonical complete utterances. Managed history proves generated output, not that each utterance finished playing; per-turn audio-delivery verification remains a limitation.
 

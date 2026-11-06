@@ -4,10 +4,11 @@
  * Browser startup marks, visible in the Performance panel as `alibai:*` and logged once as a
  * single line of milliseconds. Timings only. To remove, delete this file and its `marks` calls.
  *
- * In order: sdk-import, mic, agent-response (POST /agent returned; the server logs Agora's own
- * start call as agora-start), player-joined, mic-published, then for each remote {agent,avatar}:
- * -joined (user-joined), -published-{audio,video} (user-published), -decoded-{audio,video}
- * (first decoded frame), and finally ready (the server started the clock).
+ * In order: sdk-import, mic, connect-response (POST /connect returned, once the agent exists; the
+ * server logs Agora's own start call as agora-start), player-joined, mic-published, then for each
+ * remote {agent,avatar}: -joined (user-joined), -published-{audio,video} (user-published),
+ * -decoded-{audio,video} (first decoded frame), then ready-request and ready (the server started
+ * the clock).
  */
 export function startupMarks() {
   const began = performance.now()

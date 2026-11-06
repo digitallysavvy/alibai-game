@@ -191,7 +191,7 @@ test('captions stay display only and outside the media readiness gate', async ()
   const [helper, hook, session, route] = await Promise.all(['lib/agora/live-transcript.ts', 'lib/agora/use-suspect-voice.ts', 'components/game/production-session.tsx', 'app/api/sessions/[id]/[action]/route.ts'].map(path => readFile(path, 'utf8')));
   assert.doesNotMatch(helper, /sessionRequest|gameRequest|\bfetch\(|lib\/game\/api/);
   // The hook's only server actions remain the media lifecycle, none carrying a transcript.
-  assert.deepEqual([...new Set([...hook.matchAll(/sessionRequest(?:<\w+>)?\(sessionId,\s*'([^']+)'/g)].map(match => match[1]))].sort(), ['agent', 'agent-ready', 'end']);
+  assert.deepEqual([...new Set([...hook.matchAll(/sessionRequest(?:<\w+>)?\(sessionId,\s*'([^']+)'/g)].map(match => match[1]))].sort(), ['connect', 'end', 'ready']);
   assert.doesNotMatch(hook, /sessionRequest(?:<\w+>)?\(sessionId,\s*'[^']+',\s*(?:[^\s{]|\{[^}])/);
   assert.match(hook, /!published \|\| !audioDecoded \|\| !videoDecoded \|\| failedAutoplay/);
   assert.doesNotMatch(hook, /await connectLiveTranscript/);
@@ -202,7 +202,7 @@ test('the suspect shows at decode, the server starts the clock, and a failed sta
   const [hook, screen] = await Promise.all(['lib/agora/use-suspect-voice.ts', 'components/game/interview-screen.tsx'].map(path => readFile(path, 'utf8')));
   assert.match(screen, /const live = \['live','starting_clock','reconnecting'\]/);
   // The overlay lifts only past the decode gate, and 'live' follows only a server reply.
-  const gate = hook.indexOf('!published || !audioDecoded'), overlay = hook.indexOf("setPhase('starting_clock')"), request = hook.indexOf("'agent-ready'"), live = hook.indexOf("setPhase('live'); await");
+  const gate = hook.indexOf('!published || !audioDecoded'), overlay = hook.indexOf("setPhase('starting_clock')"), request = hook.indexOf("'ready', {}"), live = hook.indexOf("setPhase('live'); viewCallback");
   assert.ok(gate > 0 && gate < overlay && overlay < request && request < live);
   const failure = hook.slice(live, hook.indexOf('finally { readyInFlight'));
   assert.match(failure, /setPhase\('error'\)/);
@@ -224,6 +224,7 @@ test('startup marks keep the agent start, remote join, publish and decode apart'
   const [hook, voice] = await Promise.all(['lib/agora/use-suspect-voice.ts', 'lib/server/voice.ts'].map(path => readFile(path, 'utf8')));
   assert.match(voice, /timer\.step\('agora-start',\(\)=>startSuspectAgent/);
   assert.match(hook, /client\.on\('user-joined'[\s\S]{0,160}-joined`\)/);
-  for (const mark of ['agent-response', 'player-joined', 'mic-published']) assert.ok(hook.includes(`marks.mark('${mark}')`), mark);
+  for (const mark of ['connect-response', 'player-joined', 'mic-published', 'ready-request', 'ready']) assert.ok(hook.includes(`marks.mark('${mark}')`), mark);
   for (const mark of ['-published-${mediaType}', '-decoded-audio', '-decoded-video']) assert.ok(hook.includes(mark), mark);
+  assert.ok(hook.indexOf("marks.mark('mic')") < hook.indexOf("marks.mark('connect-response')"));
 });

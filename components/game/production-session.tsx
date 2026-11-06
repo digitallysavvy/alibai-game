@@ -36,7 +36,8 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
   const autoConnected = useRef(false)
   const autoEnded = useRef(false)
   const applyView = useCallback((data: SessionView) => {
-    setView(data)
+    // A read that was in flight when the clock started must not undo it.
+    setView(current => current?.session.started_at && !data.session.started_at ? current : data)
     setClockOffset(Date.parse(data.serverTime) - Date.now())
   }, [])
   const refresh = useCallback(async () => {
@@ -45,7 +46,7 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
       applyView(data); setError('')
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not open the case.') }
   }, [sessionId, applyView])
-  const voice = useSuspectVoice(sessionId, refresh)
+  const voice = useSuspectVoice(sessionId, applyView, refresh)
   useEffect(() => {
     if(mode !== 'interview' || view?.session.state !== 'active' || voice.phase !== 'live') return
     let stopped = false
@@ -110,13 +111,14 @@ export function ProductionSession({ sessionId, mode }: { sessionId: string; mode
       void voice.endSession().then(data => { applyView(data); setError('') }).catch(() => { autoEnded.current = false; setError('The interview has ended. Please retry filing your verdict.') })
     } })
   }, [mode, view?.session.state, started, clockOffset, applyView, voice.disconnect, voice.endSession])
-  // Entering the room connects straight away. Failures fall back to the retry button.
+  // Connects once the first read shows a session that can. Failures fall back to the retry button.
   useEffect(() => {
     const state = view?.session.state
     if(mode !== 'interview' || autoConnected.current || voice.phase !== 'idle' || secondsLeft({ startedAt: started, endedAt: ended, clockOffset }, Date.now()) <= 0) return
     if(!state || !['created','preparing','active'].includes(state)) return
-    autoConnected.current = true
-    void voice.start()
+    // Deferred so React's development double mount can't cancel the only attempt.
+    const timer = window.setTimeout(() => { autoConnected.current = true; void voice.start() }, 0)
+    return () => window.clearTimeout(timer)
   }, [mode, view?.session.state, voice.phase, voice.start, started, ended, clockOffset])
 
   // The room has its own one-viewport layout; the handlers stay here so the dossier pages share them.

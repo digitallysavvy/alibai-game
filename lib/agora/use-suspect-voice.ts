@@ -10,13 +10,14 @@ interface RtcCredentials {
   appId: string; channel: string; uid: number; rtcToken: string; rtmUid: string; rtmToken: string
   agentUid: number; avatarUid: number; expiresAt: number
 }
+interface ConnectResponse { view: SessionView; connection: RtcCredentials | null }
 type Phase = 'idle' | 'connecting' | 'waiting_media' | 'starting_clock' | 'live' | 'reconnecting' | 'ended' | 'error'
 
 /** Media lifecycle adapted from the official Next.js ConversationComponent and RTC Web skill.
  * Live captions are display only. No transcript or fact leaves the browser: discovery remains
  * a trusted server responsibility, and captions take no part in the readiness gate.
  */
-export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>) {
+export function useSuspectVoice(sessionId: string, onView: (view: SessionView) => void, onRefresh: () => Promise<void>) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState('')
   const [muted, setMuted] = useState(false)
@@ -34,9 +35,11 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
   const active = useRef(false)
   const starting = useRef(false)
   const hasAgent = useRef(false)
-  const readyCallback = useRef(onReady)
+  const viewCallback = useRef(onView)
+  const refreshCallback = useRef(onRefresh)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  readyCallback.current = onReady
+  viewCallback.current = onView
+  refreshCallback.current = onRefresh
 
   const releaseMedia = useCallback(async () => {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null }
@@ -82,10 +85,13 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
       if (!isCurrent()) { microphone.stop(); microphone.close(); return }
       microphoneRef.current = microphone
       marks.mark('mic')
-      const credentials = await sessionRequest<RtcCredentials>(sessionId, 'agent', {}).catch(error => { agentFailed = true; throw error })
-      agentRequested = true; hasAgent.current = true
-      marks.mark('agent-response')
-      if (!isCurrent()) { await releaseMedia(); void endSession().catch(()=>{}); return }
+      // Resolves once the agent exists. Without credentials the session is past connecting, so no agent needs ending.
+      const { view, connection: credentials } = await sessionRequest<ConnectResponse>(sessionId, 'connect', {}).catch(error => { agentFailed = true; throw error })
+      if (credentials) { agentRequested = true; hasAgent.current = true }
+      marks.mark('connect-response')
+      if (!isCurrent()) { await releaseMedia(); if (credentials) void endSession().catch(()=>{}); return }
+      viewCallback.current(view)
+      if (!credentials) { starting.current = false; await releaseMedia(); setPhase('ended'); return }
       const client = AgoraRTC.createClient({ mode:'rtc', codec:'h264' })
       clientRef.current = client
       let audioDecoded = false, videoDecoded = false, published = false, ready = false, readyInFlight = false
@@ -96,12 +102,13 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
         // Media is playing, so the suspect shows now. Only the server's reply starts the clock.
         setPhase('starting_clock')
         try {
-          await sessionRequest(sessionId, 'agent-ready', {})
+          marks.mark('ready-request')
+          const liveView = await sessionRequest<SessionView>(sessionId, 'ready', {})
           if (!isCurrent()) return
           ready = true; active.current = true; starting.current = false
           if(timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null }
           marks.mark('ready'); marks.report('ready')
-          setPhase('live'); await readyCallback.current()
+          setPhase('live'); viewCallback.current(liveView)
         } catch {
           if(isCurrent()) {
             // Leave nothing playing behind the error. The agent stays up for a retry, and
@@ -110,7 +117,7 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
             ++attempt.current; starting.current = false; active.current = false
             setError('The suspect connected, but the server could not confirm the interview clock. Please retry the connection.'); setPhase('error')
             await releaseMedia()
-            await readyCallback.current().catch(() => {})
+            await refreshCallback.current().catch(() => {})
           }
         } finally { readyInFlight = false }
       }
@@ -149,7 +156,7 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
         if(state === 'DISCONNECTED' && ready) { setPhase('error'); setError('The voice connection was lost. The server clock continues; reconnect or finish your verdict.') }
       })
       client.on('token-privilege-will-expire', () => {
-        void sessionRequest<RtcCredentials>(sessionId,'agent',{}).then(async tokens=>{ await client.renewToken(tokens.rtcToken); await transcriptRef.current?.renewToken(tokens.rtmToken) }).catch(()=>setError('Connection credentials could not be renewed. Finish your interview and submit a verdict.'))
+        void sessionRequest<ConnectResponse>(sessionId,'connect',{}).then(async ({ connection })=>{ if(!connection) throw new Error('No connection'); await client.renewToken(connection.rtcToken); await transcriptRef.current?.renewToken(connection.rtmToken) }).catch(()=>setError('Connection credentials could not be renewed. Finish your interview and submit a verdict.'))
       })
       // Not awaited: captions run beside the join to catch the greeting, and can neither
       // delay nor fail the media path. A reconnect keeps the lines already on screen.
@@ -170,7 +177,7 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
       published = true; setPhase('waiting_media'); void markReady()
       // Decode is the readiness gate. The player gets an explicit retry if no media arrives.
       timeoutRef.current = setTimeout(() => {
-        if(isCurrent() && !ready) { setError('The suspect’s audio and avatar did not connect in time. Your clock never started. Please request another case.'); setPhase('error'); starting.current = false; ++attempt.current; void releaseMedia(); void endSession().then(() => readyCallback.current()).catch(()=>{}) }
+        if(isCurrent() && !ready) { setError('The suspect’s audio and avatar did not connect in time. Your clock never started. Please request another case.'); setPhase('error'); starting.current = false; ++attempt.current; void releaseMedia(); void endSession().then(() => refreshCallback.current()).catch(()=>{}) }
       }, 60000)
       // Replay from a fresh user gesture can release browser autoplay restrictions.
       resumeRef.current = () => { audioRef.current?.play(); failedAutoplay = false; setAudioBlocked(false); void markReady() }
@@ -183,7 +190,7 @@ export function useSuspectVoice(sessionId: string, onReady: () => Promise<void>)
           : 'Could not connect the interview. Allow microphone access, check your connection, and retry. Your case is saved.')
         if(agentRequested) await endSession().catch(()=>{})
         // A failed start abandons the session on the server; show the player the way out.
-        if(agentRequested || agentFailed) await readyCallback.current().catch(()=>{})
+        if(agentRequested || agentFailed) await refreshCallback.current().catch(()=>{})
       }
     }
   }, [sessionId, releaseMedia, endSession])

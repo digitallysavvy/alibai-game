@@ -138,3 +138,123 @@ test('local Supabase: spoken-line normalization matches the server', { skip: !en
  const lines = fixtures.flatMap(s => s.knowledge.facts.flatMap(f => f.disclosurePhrases));
  for (const line of [...lines, "I didn't, can't, won't, cannot; Sela’s key, it's 7:10 PM…"]) assert.equal(await rpc('speech_normalize', { p_text: line }), speechNormalize(line));
 });
+
+test('local Supabase: connect, ready and start races', { skip: !enabled, timeout: 120_000 }, async t => {
+ for (const s of fixtures) {
+  const existing = await request(`/rest/v1/scenarios?id=eq.${s.scenarioId}&select=id`, undefined, service!, 'GET'); assert.ok(existing.ok);
+  if (!existing.data.length) await rpc('publish_scenario', { doc: assertValid(s) });
+ }
+ const open = async () => { await releaseLeases(); const p = await player(); return { id: p.id, token: p.token, sid: await rpc('assign_scenario', { p_player: p.id, p_key: randomUUID() }) as string }; };
+ const args = (g: { id: string; sid: string }) => ({ p_player: g.id, p_session: g.sid });
+ const connect = (g: { id: string; sid: string }) => rpc('session_connect', args(g));
+ const ready = (g: { id: string; sid: string }, agent: string | null) => request('/rest/v1/rpc/session_ready', { ...args(g), p_agent: agent });
+ const life = (g: { id: string; sid: string }, name: string, agent?: string) => request('/rest/v1/rpc/agent_lifecycle', { ...args(g), p_action: name, ...(agent ? { p_agent: agent } : {}) });
+ const session = async (g: { id: string; sid: string }) => (await action(g.id, g.sid, 'read')).session;
+ const run = async (g: { sid: string }) => (await request(`/rest/v1/agent_runs?session_id=eq.${g.sid}&select=agent_id,state`, undefined, service!, 'GET')).data[0];
+ const refused = (result: { ok: boolean; data: { message?: string } }, code: string) => { assert.equal(result.ok, false, code); assert.match(String(result.data?.message), new RegExp(code)); };
+
+ await t.test('connect returns the snapshot and the claim in one call, for the owner only', async () => {
+  const g = await open(), other = await player();
+  refused(await request('/rest/v1/rpc/session_connect', { p_player: other.id, p_session: g.sid }), 'SESSION_NOT_FOUND');
+  assert.equal((await run(g)), undefined, 'a stranger claims nothing');
+  const first = await connect(g);
+  assert.deepEqual(first.claim, { claimed: true });
+  assert.equal(first.snapshot.session.state, 'preparing');
+  assert.ok(first.snapshot.scenario.answerKey, 'server-only snapshot, narrowed by projection()');
+  assert.deepEqual(first.snapshot.factIds, []);
+ });
+ await t.test('browsers cannot call the new functions', async () => {
+  const g = await open();
+  refused(await request('/rest/v1/rpc/session_connect', args(g), g.token), 'permission denied');
+  refused(await request('/rest/v1/rpc/session_ready', { ...args(g), p_agent: null }, g.token), 'permission denied');
+  refused(await request('/rest/v1/rpc/session_connect', args(g), anon!), 'permission denied');
+ });
+ await t.test('double clicks and retries claim exactly once, and a renewal after commit sees the run', async () => {
+  const g = await open();
+  const results = await Promise.all(Array.from({ length: 8 }, () => connect(g)));
+  assert.equal(results.filter(r => r.claim.claimed).length, 1);
+  for (const r of results.filter(r => !r.claim.claimed)) { assert.equal(r.claim.state, 'starting'); assert.equal(r.claim.agentId, null); }
+  assert.equal((await connect(g)).claim.state, 'starting');
+  assert.ok((await life(g, 'commit', 'agent-renew')).ok);
+  const renewed = await connect(g);
+  assert.equal(renewed.claim.state, 'running'); assert.equal(renewed.claim.claimed, false);
+ });
+ await t.test('ready needs the committed agent, then starts the clock once', async () => {
+  const g = await open(); await connect(g);
+  refused(await ready(g, null), 'AGENT_NOT_READY');
+  assert.equal((await session(g)).started_at, null); assert.equal((await session(g)).state, 'preparing');
+  assert.ok((await life(g, 'commit', 'agent-ready-1')).ok);
+  refused(await ready(g, 'agent-forged'), 'AGENT_NOT_READY');
+  assert.equal((await session(g)).started_at, null);
+  const started = await ready(g, 'agent-ready-1');
+  assert.ok(started.ok); assert.equal(started.data.session.state, 'active'); assert.ok(started.data.session.started_at);
+  const again = await ready(g, 'agent-ready-1');
+  assert.equal(again.data.session.started_at, started.data.session.started_at, 'a reconnect never moves the clock');
+ });
+ await t.test('the run lookup in readyVoice only finds the owner\'s run', async () => {
+  const g = await open(), stranger = await player(); await connect(g);
+  const lookup = (playerId: string) => request(`/rest/v1/agent_runs?session_id=eq.${g.sid}&game_sessions.player_id=eq.${playerId}&select=agent_id,game_sessions!inner(player_id)`, undefined, service!, 'GET');
+  const own = await lookup(g.id); assert.ok(own.ok, JSON.stringify(own.data));
+  assert.equal(own.data.length, 1); assert.equal(own.data[0].agent_id, null);
+  assert.deepEqual((await lookup(stranger.id)).data, []);
+ });
+ await t.test('no session and no run: ready refuses', async () => {
+  const g = await open();
+  refused(await ready(g, null), 'AGENT_NOT_READY');
+  const other = await player();
+  refused(await request('/rest/v1/rpc/session_ready', { p_player: other.id, p_session: g.sid, p_agent: null }), 'SESSION_NOT_FOUND');
+ });
+ await t.test('a failed start abandons the session, is visible and is never retried', async () => {
+  const g = await open(); await connect(g);
+  assert.ok((await life(g, 'failed')).ok);
+  assert.equal((await session(g)).state, 'abandoned');
+  refused(await ready(g, null), 'AGENT_NOT_READY');
+  const after = await connect(g);
+  assert.equal(after.claim, null); assert.equal(after.snapshot.session.state, 'abandoned');
+  assert.equal((await run(g)).state, 'failed'); assert.equal((await session(g)).started_at, null);
+ });
+ await t.test('end before commit: commit conflicts, so the caller stops the agent, and no clock starts', async () => {
+  const g = await open(); await connect(g);
+  assert.ok((await request('/rest/v1/rpc/end_session', args(g))).ok);
+  assert.equal((await life(g, 'stop')).ok, true, 'stop has no agent ID yet, so it is the start that must clean up');
+  refused(await life(g, 'commit', 'agent-late'), 'AGENT_STATE_CONFLICT');
+  assert.ok((await life(g, 'failed')).ok);
+  assert.deepEqual(await run(g), { agent_id: null, state: 'failed' });
+  refused(await ready(g, 'agent-late'), 'AGENT_NOT_READY');
+  assert.equal((await session(g)).state, 'abandoned'); assert.equal((await session(g)).started_at, null);
+ });
+ await t.test('end racing commit always leaves one side able to stop the agent', async () => {
+  for (let i = 0; i < 6; i++) {
+   const g = await open(), agent = `agent-end-${randomUUID()}`; await connect(g);
+   const [commit, end] = await Promise.all([life(g, 'commit', agent), request('/rest/v1/rpc/end_session', args(g))]);
+   assert.ok(end.ok);
+   const stop = await life(g, 'stop');
+   if (commit.ok) assert.equal(stop.data.agentId, agent, 'committed first: stop gets the agent');
+   else assert.match(commit.data.message, /AGENT_STATE_CONFLICT/);
+   assert.equal((await session(g)).state, 'abandoned');
+  }
+ });
+ await t.test('end before connect: leaving while the request is in flight claims nothing', async () => {
+  const g = await open();
+  assert.ok((await request('/rest/v1/rpc/end_session', args(g))).ok);
+  assert.equal((await connect(g)).claim, null); assert.equal(await run(g), undefined);
+ });
+ await t.test('sessions past their clock or already closed are read without a claim', async () => {
+  const g = await open(); await connect(g); assert.ok((await life(g, 'commit', `agent-${randomUUID()}`)).ok);
+  const agent = (await run(g)).agent_id; assert.ok((await ready(g, agent)).ok);
+  assert.equal((await connect(g)).claim.state, 'running', 'a reconnect during the interview');
+  assert.ok((await request(`/rest/v1/game_sessions?id=eq.${g.sid}`, { started_at: new Date(Date.now() - 181_000).toISOString() }, service!, 'PATCH')).ok);
+  assert.equal((await connect(g)).claim, null, 'past the clock');
+  assert.ok((await request('/rest/v1/rpc/end_session', args(g))).ok);
+  const ended = await connect(g);
+  assert.equal(ended.claim, null); assert.equal(ended.snapshot.session.state, 'ended');
+ });
+ await t.test('code still using agent_lifecycle directly behaves as before', async () => {
+  const g = await open(), agent = `agent-old-${randomUUID()}`;
+  assert.deepEqual((await life(g, 'claim')).data, { claimed: true });
+  assert.equal((await life(g, 'claim')).data.claimed, false);
+  assert.ok((await life(g, 'commit', agent)).ok); assert.ok((await life(g, 'ready')).ok);
+  assert.equal((await session(g)).state, 'active');
+  assert.equal((await life(g, 'stop')).data.agentId, agent); assert.ok((await life(g, 'stopped')).ok);
+ });
+});
